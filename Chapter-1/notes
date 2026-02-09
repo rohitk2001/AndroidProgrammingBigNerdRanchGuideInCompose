@@ -1,0 +1,156 @@
+https://www.notion.so/Chapter-1-Your-First-Android-Application-3011feed638a80fc9dbad4560e990f4f
+
+Activity
+
+It is an instance of Activity, a class in Android SDK.
+It is an entry point into your application.
+It is responsible for managing user interaction with a screen of information.
+** We write sub-classes of Activity to implement functionality of the app.
+
+Layout
+
+It defines a set of UI objects positions on screen.
+It is made up of definition written in XML.
+** By convention, a layout file is named based on the activity it is associated with: Its name begins with activity_.
+
+Package Name
+
+Android package name follows reverse DNS convention.
+You take a domain name you control and **reverse it**, then append your app/module name.
+Eg: 
+Domain: bignerd.com
+Android package name: com.bignerd.GeoQuiz
+This is done to have keep it unique and distinguishes application from each other on device and in Google Play Store.
+
+** When we create a project, Android Studio automatically builds it for the first time.
+
+Default Activity Layout
+
+It contains two Views: Constraint Layout & TextView
+Each is an instance of View class or one of its sub-classes(TextView or Button etc.)
+ViewGroup: It is a kind of view that contains and arranges other views, often referred to as layouts. Eg: ConstraintLayout
+
+** Column: Represents vertical LinearLayout in compose.
+     Row: Represents horizontal LinearLayout in compose.  
+
+| XML LinearLayout | Compose |
+| --- | --- |
+| `layout_width="match_parent"` | `Modifier.fillMaxWidth()` |
+| `layout_height="match_parent"` | `Modifier.fillMaxHeight()` |
+| `wrap_content` | default behavior |
+| `layout_margin` | `Modifier.padding()` |
+| `gravity` | `horizontalAlignment` / `verticalAlignment` |
+| `layout_gravity` | `Modifier.align()` |
+| `layout_weight` | `Modifier.weight()` |
+
+The view hierarchy
+
+The views exist in hierarchy of View objects called the view hierarchy.
+Root element must specify the Android resource XML namespace.
+When a view is contained by a ViewGroup, that view is called “child” of ViewGroup.
+
+View attributes
+
+android:layout_width & android_layout_height : It takes mostly two values 
+match_parent: view will be as big as parent 
+wrap_content: view will be as big as it requires
+LinearLayout still has the parent, which is the Android View, hence uses match_parent.
+Other Views have it set to wrap_content.\
+
+android:orientation: It determines whether views will be shown vertically or horizontally.
+Order in which children are defined determines the order they appear on the screen.
+Vertical: First child appears top-most
+Horizontal: First child appears left-most (unless device language is set to Arabic or etc then it will be right-most)
+
+android:text: It tell what text to display.
+It does take value as directly strings, but it is preferred to pass string resource.
+A string resource is a string that lives in a separate XML file called strings.xml
+
+Previewing the layout
+
+We have 2 kinds of preview available: Design & Blueprint preview
+Design preview: Shows how layout will look on the device, including theming
+Blueprint preview: This focuses on size of views and relationships between them
+
+From Layout XML to View Objects
+
+AppCompatActivity:  It is a sub-class of Android’s Activity class that provides compatibility support for older version of Android.
+
+### What it is
+
+- Part of **androidx.appcompat**
+- Extends `FragmentActivity` → `ComponentActivity`
+- Adds **backward compatibility** features
+
+### Extra things it gives
+
+- `Toolbar` as `ActionBar`
+- Material theming support
+- Day/Night theme handling
+- AppCompat widgets (`AppCompatTextView`, etc.)
+- Support for older Android versions
+
+ComponentActivity:  Best choice for Compose only Apps.
+
+### What it is
+
+- Part of **androidx.activity**
+- Designed for **modern Android** APIs
+- Base class for **Jetpack + Compose**
+
+### What it gives you
+
+- Lifecycle awareness (`LifecycleOwner`)
+- ViewModel support
+- SavedState support
+- BackPressedDispatcher
+- Activity Result APIs
+- Compose support (`setContent {}`)
+
+Activity
+└── ComponentActivity
+├── AppCompatActivity
+└── (others: FragmentActivity, etc.)
+
+** The reason why AppCompatActivity extends ComponentActivity to have modern lifecycle behaviour and backward compatibility UI.
+
+onCreate function: It is called when an instance of activity subclass is created.
+Activity.setContentView function: This function inflates layout and puts it on screen.
+Activity.setContent function: Compose
+
+Resource and resource IDs
+
+A resource is a piece of your application that is not code.
+Eg: layouts, strings, images, XML files etc.
+They reside in app/res directory.
+During the compilation and packaging of app, the build tools generate a class known as the R class.
+** This class contains a long list of integer IDs constant, to access resources.
+To generate a resource id for a View, we can include an android:id attribute.
+
+findViewById method
+
+Used to get a reference to an inflated view, returns a View casted to its type.(Button etc.)
+** Use lateinit declaration for variables storing views, to indicate the compiler that you will provide non-null View value before you attempt to use the content of the property, since view objects are not inflated into and available in memory until after setContentView is called in onCreate.
+
+View.onClickListener
+
+It is a Java interface with a single method onClick(View).
+** Interfaces with single abstract method or SAM.
+SAM conversion: If an interface has **exactly one abstract method**, Kotlin lets you replace the whole anonymous class with a **lambda**.
+
+Toasts
+
+It is a short-message that informs user of something but does not require any input or action.
+Eg: Toast.makeText(this, R.string.correct_toast, Toast.LENGTH_SHORT).show()
+
+Android Build Process
+
+Android tools takes your resources, code and AndroidManifest.xml file and turns them into an .apk file.
+This file is then signed with debug key, which allows you to run on emulator.
+
+aapt2( Android Asset Packaging Tool): this compiles your files resources into more compact format. These compiled resources are packaged into .apk file
+
+MainActivity uses LayoutInflater class to instantiate each of the View objects as defined in the layout file.
+
+./gradlew tasks : shows lists of available tasks you can execute
+./gradlew installDebug : will install app on whatever device is connected. this will not run the app, need click the app on phone.
