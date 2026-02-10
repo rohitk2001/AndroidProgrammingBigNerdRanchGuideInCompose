@@ -1,1 +1,53 @@
+https://www.notion.so/Chapter-2-Interactive-User-Interfaces-3031feed638a80759d05e77a209671da
 
+
+Model
+
+Refer to classes that contain information that UI will display.
+
+Data classes
+
+Compiler helps in defining useful functions like equals(), hashCode(), and toString() for this.
+
+@StringRes
+
+This annotation is not required/mandatory.
+But this helps the code inspector(Lint) verify at compile time that constructor calls provide a valid string resource ID, and also makes code more readable.
+
+** Even with material 3 dependency in build.gradle, will need to still add icons dependency separately. `implementation(libs.androidx.compose.material3)implementation(libs.androidx.material) implementation("androidx.compose.material:material-icons core")
+ implementation("androidx.compose.material:material-icons-extended")`
+
+View Binding
+
+Feature of build process that generates boilerplate code for your app.
+Not enabled by default, need to add following in app build.gradle:
+android { 
+    buildFeatures {
+        viewBinding true
+    }
+}
+
+Now in MainActivity.kt:
+class MainActivity : AppCompatActivity() {
+    private lateinit var binding: ActivityMainBinding
+    override fun onCreate(savedInstanceState: Bundle?) {
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        binding.trueButton.setOnClickListener { view: View → … }
+    }
+}
+
+ActivityMainBinding allows you to get references to each UI element in your activity_main.xml layout.
+**for activity_cheat.xml ; it will generate ActivityCheatBinding
+
+Screen Pixel Densities
+
+Android provides density-independent dimension units that you can use to get the same size on different screen densities.
+Android translates these units using device’s defined density bucket to pixels at runtime.
+Density Bucket: LDPI, MDPI, HDPI , … , XXXHDPI
+px : pixel , 1 pixel → one onscreen pixel, regardless of display density
+** because they do not scale appropriately with device density, their use is not recommended 
+dp: density-independent pixel, 1 dp → 1/160 of an inch of device’s screen
+you get same size regardless of screen density.
+sp: scale-independent pixel, density-independent pixel that also take into account the user’s font size preferences
+pt, mm, in: scaled units, not all devices are correctly configured for these units to scale correctly
