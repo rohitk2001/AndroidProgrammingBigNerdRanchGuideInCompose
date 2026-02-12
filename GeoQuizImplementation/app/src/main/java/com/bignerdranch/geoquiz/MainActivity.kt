@@ -96,6 +96,9 @@ fun MainScreen(modifier: Modifier = Modifier, questionBank: List<Question>) {
     var showToast by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
     var questionIndex by remember { mutableIntStateOf(0) }
+    var active by remember { mutableStateOf(true) }
+    var score by remember { mutableIntStateOf(0) }
+    var showScore by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -114,29 +117,47 @@ fun MainScreen(modifier: Modifier = Modifier, questionBank: List<Question>) {
             )
         )
         Row {
-            Button(onClick = {
-                showToast = true
-                message = if (checkAnswer(questionBank[questionIndex], true)) {
-                    "Well Done"
-                } else {
-                    "Try Again"
+            Button(
+                enabled = active,
+                onClick = {
+                    active = false
+                    showToast = true
+                    score = if (checkAnswer(questionBank[questionIndex], true)) {
+                        score + 1
+                    } else {
+                        score
+                    }
+                    message = if (checkAnswer(questionBank[questionIndex], true)) {
+                        "Well Done"
+                    } else {
+                        "Try Again"
+                    }
                 }
-            }) {
+            ) {
                 Text("TRUE")
             }
-            Button(onClick = {
-                message = if (checkAnswer(questionBank[questionIndex], false)) {
-                    "Well Done"
-                } else {
-                    "Try Again"
+            Button(
+                enabled = active,
+                onClick = {
+                    active = false
+                    score = if (checkAnswer(questionBank[questionIndex], false)) {
+                        score + 1
+                    } else {
+                        score
+                    }
+                    message = if (checkAnswer(questionBank[questionIndex], false)) {
+                        "Well Done"
+                    } else {
+                        "Try Again"
+                    }
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            message = message,
+                            duration = SnackbarDuration.Short // Ensures auto-dismissal
+                        )
+                    }
                 }
-                scope.launch {
-                    snackbarHostState.showSnackbar(
-                        message = message,
-                        duration = SnackbarDuration.Short // Ensures auto-dismissal
-                    )
-                }
-            }) {
+            ) {
                 Text("FALSE")
             }
         }
@@ -144,6 +165,7 @@ fun MainScreen(modifier: Modifier = Modifier, questionBank: List<Question>) {
         Row {
             Button(
                 onClick = {
+                    active = true
                     questionIndex =
                         if (questionIndex == 0) questionBank.size - 1 else (questionIndex - 1)
                 }
@@ -160,6 +182,8 @@ fun MainScreen(modifier: Modifier = Modifier, questionBank: List<Question>) {
 
             Button(
                 onClick = {
+                    active = true
+                    showScore = questionIndex == 3
                     questionIndex = (questionIndex + 1) % questionBank.size
                 }
             ) {
@@ -182,6 +206,17 @@ fun MainScreen(modifier: Modifier = Modifier, questionBank: List<Question>) {
                 Toast.LENGTH_SHORT
             ).show()
             showToast = false
+        }
+
+        if (showScore) {
+            val context = LocalContext.current
+            Toast.makeText(
+                context,
+                "Your score is : $score",
+                Toast.LENGTH_SHORT
+            ).show()
+            score = 0
+            showScore = false
         }
 
         SnackbarHost(
