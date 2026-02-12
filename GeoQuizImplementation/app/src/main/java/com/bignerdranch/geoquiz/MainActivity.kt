@@ -1,6 +1,7 @@
 package com.bignerdranch.geoquiz
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -37,8 +38,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.bignerdranch.geoquiz.ui.theme.GeoQuizTheme
 import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
+private const val TAG = "MainActivity"
 
+class MainActivity : ComponentActivity() {
     private val questionBank = listOf(
         Question(R.string.question_1, true),
         Question(R.string.question_2, false),
@@ -48,6 +50,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d(TAG, "onCreate(Bundle?) called")
         enableEdgeToEdge()
         setContent {
             GeoQuizTheme {
@@ -60,6 +63,32 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        Log.d(TAG, "onStart() called")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d(TAG, "onResume() called")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        Log.d(TAG, "onPause() called")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        Log.d(TAG, "onStop() called")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d(TAG, "onDestroy() called")
+    }
+
 }
 
 @Composable

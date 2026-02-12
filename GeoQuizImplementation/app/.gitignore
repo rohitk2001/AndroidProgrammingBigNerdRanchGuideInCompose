@@ -1,1 +1,54 @@
-/build
+# Built application files
+*.apk
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+build/
+.gradle/
+.idea/workspace.xml
+.idea/libraries/
+.idea/modules.xml
+local.properties
+.DS_Store # macOS specific
+*/build/
+.externalNativeBuild/
+.cxx/
+captures/
+.navigation/
+filehashes
+bin/
+
+# Android Studio and IntelliJ IDEA files
+.idea/
+*.iml
+*.iws
+
+# Keystore files
+*.jks
+*.keystore
+
+# External native build files
+CMakeLists.txt.user
+
+# Plugin-related files
+.flutter-plugins
+.flutter-plugins-dependencies
+.gradle-tooling-api-generated-models
+
+# Gradle files
+.gradle
+gradle-wrapper/
+!gradle-wrapper.jar
+
+# Crashlytics/Fabric files
+fabric/
+
+# For Compose Multiplatform
+.kotlin/
