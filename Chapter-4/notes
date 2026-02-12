@@ -1,0 +1,79 @@
+https://www.notion.so/Chapter-4-Persisting-UI-State-3051feed638a8068a30dc3bbc74aa6ae
+
+ViewModel
+
+It is a class that survives rotation, which we can use to store state.
+It is usually scoped to a single screen and is useful place to put logic involved in formatting data to display on screen.
+
+SavedStateHandle: This class allows to temporarily store simple data outside the lifecycle of app’s process(it survives configuration changes).
+
+** can also use rememberSaveable for local properties in compose file, to survive configuration changes.
+
+Including ViewModel Dependency
+
+ViewModel class comes from Android Jetpack library called androidx.lifecycle
+Also add androidx.activity.library to add functionality to MainActivity.kt
+
+`implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")`
+
+`implementation("androidx.activity:activity-ktx:1.12.3")`
+
+Adding a ViewModel
+
+Eg: QuizViewModel.kt
+
+`private const val TAG = "QuizViewModel"
+class QuizViewModel: ViewModel() {    
+     init {        
+         Log.d(TAG, "ViewModel instance created")    
+     }    
+     override fun onCleared() {        
+         super.onCleared()        
+         Log.d(TAG, "ViewModel instance about to be destroyed")    
+     }
+}`
+
+Using the ViewModel in Activity
+
+`class MainActivity : ComponentActivity() {    
+    private val quizViewModel: QuizViewModel by viewModels()`
+
+       `override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)   
+        Log.d(TAG, "Got a QuizViewModel: $quizViewModel")
+    }`
+`}`
+
+The ‘by’ keyword indicates that a property is implemented using a property delegate.
+Property delegate: Its a way in Kotlin to delegate  the functionality of a property to an external unit of code.
+Eg: lazy; this allows to save resources by waiting to initialise the property only when it is accessed.
+Eg: viewModels(); this works in same way, the view model will not be initialized unless we access it.
+When the activity queries for QuizViewModel for first time, viewModels() creates and returns a new QuizViewModel instance.
+** When the activity queries for QuizViewModel after configuration change, the instance that was first created is returned.
+When activity is finished, the ViewModel - Activity pair is removed from memory.
+
+** If you directly instantiate the view model directly instead of using viewModels() property delegate, it will work the same, BUT will lose the benefit of same instance being returned after your Activity’s configuration change.
+
+ViewModel lifecycle
+
+It survives configuration changes and is destroyed only when its associated activity is finished.
+When we associate a ViewModel instance with an activity’s lifecycle, then ViewModel is said to be scoped to that activity’s lifecycle.
+This means the ViewModel will remain in memory, regardless of Activity’s state, until Activity is finished, once finished, ViewModel instance is destroyed.
+
+The relationship between MainActivity and QuizViewModel is UNIDIRECTIONAL, activity references the ViewModel but the ViewModel does not access the activity.
+
+**YOUR VIEWMODEL SHOULD NEVER HOLD REFERENCE TO AN ACTIVITY OR VIEW, OTHERWISE YOU WILL INTRODUCE A MEMORY LEAK.
+
+Memory Leak: This occurs when one object holds a strong reference to another object that should be destroyed. The strong reference prevents the garbage collector from clearing the object from memory.
+
+Eg: Your ViewModel instance stays in memory across rotation, while your original activity instance gets destroyed. But if the ViewModel held a strong reference to the original activity instance,  two problems will occur:
+1. Original activity instance would not be removed from memory, and thus activity would be leaked.
+2. ViewModel would hold reference to stale activity.
+** If ViewModel tried to update view of stale activity, it would trigger an IllegalStateException.
+So viewmodel will have old activity reference, but new activity willl still have view model reference.
+
+Saving Data Across Process Death
+
+Each app gets its own process(Linux process) containing a single thread to execute UI-related work on and a piece of memory to store objects.
+An app’s process can be destroyed by OS, if the user navigates away for a while, and Android needs to reclaim memory.
+When an app’s process is destroyed , all the objects stored in that process’s memory are destroyed.
