@@ -1,0 +1,27 @@
+https://www.notion.so/Chapter-5-Debugging-Android-Apps-3061feed638a8024929bd3a4727f3253
+
+LogCat
+
+Used to view logs.
+Can filter: level: error to view only error logs or search for “FATAL EXCEPTION”
+
+Why do we see java.lang exception in stack trace when writing Kotlin code?
+
+When building for Android, Kotlin code is compiled to same kind of low-level byte code Java code is compiled to.
+During that process, many Kotlin exceptions are mapped to java.lang exception classes through type-aliasing.
+** kotlin.RuntimeException is superclass of kotlin.UninitializedPropertyAccessException, and it is aliased to java.lang.RuntimeException when running on Android.
+
+Debug app VS Attach Debugger to Android Process
+
+** If you edit your code while debugging, the code running with the debugger attached will be out of date compared to what is in editor tool window, so the debugger can show misleading information compared to updated code.
+
+Android Lint
+
+It is a static analyser for Android code.
+It is a program that examines your code to find defects without running it.
+It uses its knowledge  of Android framework to look deeper into your code and find problems that the compiler cannot.
+You can run this manually from Menu bar:
+Double click → Analyse → Inspect Code
+This will run Android Lint, other static analysers(speling 
+and Kotlin check).
+** Mostly app will run fine , without addressing these Lint warnings, but we should address them for better user experience.
