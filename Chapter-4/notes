@@ -77,3 +77,41 @@ Saving Data Across Process Death
 Each app gets its own process(Linux process) containing a single thread to execute UI-related work on and a piece of memory to store objects.
 An app’s process can be destroyed by OS, if the user navigates away for a while, and Android needs to reclaim memory.
 When an app’s process is destroyed , all the objects stored in that process’s memory are destroyed.
+Processes containing resumed or started activities get higher priority than any other processes.
+When the OS needs to free up resources it will select lower-priority resources first.
+** Practically process containing a visible activity will not be reclaimed by the OS.
+So processes that do not have any activities in started or resumed can be killed.
+Activities themselves are not individually destroyed in low-memory situations, instead Android clears an entire app process from memory, taking any of the app’s activities with it.
+
+**When OS destroys the app’s process, any of the app’s activities and ViewModel’s stored in memory will be wiped away. There is no guarantee that it will call any of the activity or ViewModel lifecycle callback functions.
+
+SavedStateHandle
+
+Used to store data in saved instance state, which is data the OS temporarily stores outside of the activity.
+Eg: 
+`const val CURRENT_INDEX_KEY = "CURRENT_INDEX_KEY"
+ class QuizViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {`
+
+    `private var currentIndex: Int    
+      get() = savedStateHandle[CURRENT_INDEX_KEY] ?: 0    
+      set(value) = savedStateHandle.set(CURRENT_INDEX_KEY, value) 
+}`
+The data within SavedStateHandle is “serialised” and written to disk, so we should avoid storing any large or complex objects.
+This helps in handling PROCESS DEATH gracefully, by storing imp. changes.
+** Before this was introduced, developers used Activity.onSaveInstanceState(Bundle) function to store and to retrieve used Activity.onCreate(Bundle?) function.
+
+State
+
+Since we are now using ViewModel to update values, the composable will be able to read its updates only if state changes.
+Eg: QuizViewModel.kt
+`private var currentIndexStateFlow: StateFlow<Int> = savedStateHandle.getStateFlow(CURRENT_INDEX_KEY, 0)`
+
+`private var currentIndex: Int    
+    get() = currentIndexStateFlow.value    
+    set(value) {        
+        savedStateHandle[CURRENT_INDEX_KEY] = value    
+    }`
+MainScreen Composable method
+`val currentIndex by quizViewModel.getCurrentIndexFlow().collectAsState()`
+
+** So now, simply collecting the StateFlow is enough to make Compose observe for changes, even if you don't use the resulting currentIndex variable directly in your code.
