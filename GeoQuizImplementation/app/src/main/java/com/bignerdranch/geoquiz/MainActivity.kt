@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,11 +24,13 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,18 +38,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.SavedStateHandle
 import com.bignerdranch.geoquiz.ui.theme.GeoQuizTheme
 import kotlinx.coroutines.launch
 
 private const val TAG = "MainActivity"
 
 class MainActivity : ComponentActivity() {
-    private val questionBank = listOf(
-        Question(R.string.question_1, true),
-        Question(R.string.question_2, false),
-        Question(R.string.question_3, false),
-        Question(R.string.question_4, true)
-    )
+
+    private val quizViewModel: QuizViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,11 +57,12 @@ class MainActivity : ComponentActivity() {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MainScreen(
                         modifier = Modifier.padding(innerPadding),
-                        questionBank
+                        quizViewModel
                     )
                 }
             }
         }
+        Log.d(TAG, "Got a QuizViewModel: $quizViewModel")
     }
 
     override fun onStart() {
@@ -92,13 +93,13 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainScreen(modifier: Modifier = Modifier, questionBank: List<Question>) {
-    var showToast by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf("") }
-    var questionIndex by remember { mutableIntStateOf(0) }
-    var active by remember { mutableStateOf(true) }
-    var score by remember { mutableIntStateOf(0) }
-    var showScore by remember { mutableStateOf(false) }
+fun MainScreen(modifier: Modifier = Modifier, quizViewModel: QuizViewModel) {
+    var showToast by rememberSaveable { mutableStateOf(false) }
+    var message by rememberSaveable { mutableStateOf("") }
+    var active by rememberSaveable { mutableStateOf(true) }
+    var score by rememberSaveable { mutableIntStateOf(0) }
+    var showScore by rememberSaveable { mutableStateOf(false) }
+    val currentIndex by quizViewModel.getCurrentIndexFlow().collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -109,10 +110,10 @@ fun MainScreen(modifier: Modifier = Modifier, questionBank: List<Question>) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = stringResource(questionBank[questionIndex].textResId),
+            text = stringResource(quizViewModel.currentQuestionText),
             modifier = modifier.clickable(
                 onClick = {
-                    questionIndex = (questionIndex + 1) % questionBank.size
+                    quizViewModel.moveToNext()
                 }
             )
         )
@@ -122,12 +123,12 @@ fun MainScreen(modifier: Modifier = Modifier, questionBank: List<Question>) {
                 onClick = {
                     active = false
                     showToast = true
-                    score = if (checkAnswer(questionBank[questionIndex], true)) {
+                    score = if (checkAnswer(quizViewModel.currentQuestionAnswer, true)) {
                         score + 1
                     } else {
                         score
                     }
-                    message = if (checkAnswer(questionBank[questionIndex], true)) {
+                    message = if (checkAnswer(quizViewModel.currentQuestionAnswer, true)) {
                         "Well Done"
                     } else {
                         "Try Again"
@@ -140,12 +141,12 @@ fun MainScreen(modifier: Modifier = Modifier, questionBank: List<Question>) {
                 enabled = active,
                 onClick = {
                     active = false
-                    score = if (checkAnswer(questionBank[questionIndex], false)) {
+                    score = if (checkAnswer(quizViewModel.currentQuestionAnswer, false)) {
                         score + 1
                     } else {
                         score
                     }
-                    message = if (checkAnswer(questionBank[questionIndex], false)) {
+                    message = if (checkAnswer(quizViewModel.currentQuestionAnswer, false)) {
                         "Well Done"
                     } else {
                         "Try Again"
@@ -166,8 +167,7 @@ fun MainScreen(modifier: Modifier = Modifier, questionBank: List<Question>) {
             Button(
                 onClick = {
                     active = true
-                    questionIndex =
-                        if (questionIndex == 0) questionBank.size - 1 else (questionIndex - 1)
+                    quizViewModel.moveToPrev()
                 }
             ) {
                 Row {
@@ -183,8 +183,8 @@ fun MainScreen(modifier: Modifier = Modifier, questionBank: List<Question>) {
             Button(
                 onClick = {
                     active = true
-                    showScore = questionIndex == 3
-                    questionIndex = (questionIndex + 1) % questionBank.size
+                    showScore = currentIndex == 3
+                    quizViewModel.moveToNext()
                 }
             ) {
                 Row {
@@ -226,14 +226,14 @@ fun MainScreen(modifier: Modifier = Modifier, questionBank: List<Question>) {
     }
 }
 
-private fun checkAnswer(question: Question, answer: Boolean): Boolean {
-    return question.answer == answer
+private fun checkAnswer(question: Boolean, answer: Boolean): Boolean {
+    return question == answer
 }
 
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
     GeoQuizTheme {
-        MainScreen(Modifier, emptyList())
+        MainScreen(Modifier, quizViewModel = QuizViewModel(savedStateHandle = SavedStateHandle()))
     }
 }
