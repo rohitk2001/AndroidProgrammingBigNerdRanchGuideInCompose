@@ -1,0 +1,73 @@
+https://www.notion.so/Chapter-6-Testing-3071feed638a8015a253f5cdff72e72d
+
+Unit testing
+
+It is the practice of writing and using small programs to verify the standalone behaviour of as unit of code within your app.
+It gives your more confidence that your existing functionality remains intact, preventing regressions in behaviour  - bugs where features that previously worked stop working.
+
+Two types of Tests
+
+1. JVM Tests
+They execute on your development machine through a JVM.
+2. Instrumented Test
+They execute directly on your Android device.
+Without workaround, you can only interact with Android SDK classes(Activity, TextView etc.)
+
+Source sets in codebase
+
+1. main: It holds the code that is compiled and packaged when you install the app on the Android device.
+2. test: JVM tests are located in this.
+3. androidTest: Instrumented tests are located in this.
+
+JUnit
+
+Both JVM and instrumented tests are executed using the Unit testing framework.
+JUnit tests are encapsulated by classes. Within these classes, individual tests are functions marked by @Test annotation.
+Names for test functions should be descriptive and verbose.
+
+** The time required to run these tests will vary based on the horsepower of your development machine.
+
+Unit Test Code is setup in three phases:
+1. Set up your testing environment
+2. Test your specific unit of code
+3. Verify that the unit of code behaves the way you expect
+
+** The ability to create instances of a ViewModel and pass data in as constructor parameters allows you to write useful and reliable unit tests. Hence it is recommended to keep business logic in ViewModel rather than Android Components like Activity.
+
+Instrumented Test with Espresso and ActivityScenario(API)
+
+Tests are annotated with @RunWith(AndroidJUnit4::class) which signals to JUnit that this test should be executed on and Android device.
+
+ `@Before
+ fun setup(){` 
+  This setup function allows you setup test environment.
+     The @Before annotation ensures that JUnit executes the setup() function before every test.
+
+ `}`
+
+`@After
+fun tearDown(){
+   Similary @After ensures that tearDown executes after each test
+}`
+
+For compose:
+
+`@get:Rule
+val composeTestRule = createAndroidComposeRule<MainActivity>()`
+
+`@Test
+fun showsFirstQuestionOnLaunch(){    
+   val expectedQuestionText = composeTestRule.activity.getString(R.string.question_1)    composeTestRule
+        .onNodeWithText(expectedQuestionText)        
+        .assertIsDisplayed()
+}`
+
+** composeTestRule.waitForIdle() pauses your test execution and waits until the Compose framework reports that the UI is "idle." 
+
+Lifting State Up / State Hoisting
+
+It is about moving the state to the lowest common ancestor of all the composable that need to read or write that state. This is called State Hoisting.
+Doing this keeps our compostables “state-less”.
+We should avoid defining/initialising state in composable to keep it state-less and loosely coupled.
+
+**To test activity recreation test, we need to recreate activity on main thread instead of test thread.
