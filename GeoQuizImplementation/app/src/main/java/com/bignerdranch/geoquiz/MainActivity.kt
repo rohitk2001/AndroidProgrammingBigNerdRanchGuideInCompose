@@ -2,7 +2,6 @@ package com.bignerdranch.geoquiz
 
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,11 +18,11 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -35,10 +34,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.SavedStateHandle
 import com.bignerdranch.geoquiz.ui.theme.GeoQuizTheme
 import kotlinx.coroutines.launch
 
@@ -54,10 +51,43 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             GeoQuizTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                val currentIndex by quizViewModel.getCurrentIndexFlow().collectAsState()
+                var score by rememberSaveable { mutableIntStateOf(0) }
+                val scope = rememberCoroutineScope()
+                val snackbarHostState = remember { SnackbarHostState() }
+
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    snackbarHost = { SnackbarHost(hostState = snackbarHostState) }) { innerPadding ->
                     MainScreen(
                         modifier = Modifier.padding(innerPadding),
-                        quizViewModel
+                        currentIndex = currentIndex,
+                        questionTextResId = quizViewModel.currentQuestionText,
+                        onAnswerClick = { userAnswer ->
+                            val isCorrect =
+                                checkAnswer(quizViewModel.currentQuestionAnswer, userAnswer)
+                            if (isCorrect) {
+                                score++
+                            }
+                            val message = if (isCorrect) {
+                                "Well Done"
+                            } else {
+                                "Try Again"
+                            }
+                            scope.launch {
+                                snackbarHostState.showSnackbar(message)
+                            }
+                        },
+                        onNextClick = {
+                            if (currentIndex == 3) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Your score is: $score")
+                                    score = 0
+                                }
+                            }
+                            quizViewModel.moveToNext()
+                        },
+                        onPrevClick = { quizViewModel.moveToPrev() }
                     )
                 }
             }
@@ -93,16 +123,18 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainScreen(modifier: Modifier = Modifier, quizViewModel: QuizViewModel) {
-    var showToast by rememberSaveable { mutableStateOf(false) }
-    var message by rememberSaveable { mutableStateOf("") }
-    var active by rememberSaveable { mutableStateOf(true) }
-    var score by rememberSaveable { mutableIntStateOf(0) }
-    var showScore by rememberSaveable { mutableStateOf(false) }
-    val currentIndex by quizViewModel.getCurrentIndexFlow().collectAsState()
-
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
+fun MainScreen(
+    modifier: Modifier = Modifier,
+    currentIndex: Int,
+    questionTextResId: Int,
+    onAnswerClick: (Boolean) -> Unit,
+    onNextClick: () -> Unit,
+    onPrevClick: () -> Unit
+) {
+    var areAnswerButtonsEnabled by rememberSaveable { mutableStateOf(true) }
+    LaunchedEffect(currentIndex) {
+        areAnswerButtonsEnabled = true
+    }
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -110,53 +142,28 @@ fun MainScreen(modifier: Modifier = Modifier, quizViewModel: QuizViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = stringResource(quizViewModel.currentQuestionText),
+            text = stringResource(questionTextResId),
             modifier = modifier.clickable(
                 onClick = {
-                    quizViewModel.moveToNext()
+                    onNextClick.invoke()
                 }
             )
         )
         Row {
             Button(
-                enabled = active,
+                enabled = areAnswerButtonsEnabled,
                 onClick = {
-                    active = false
-                    showToast = true
-                    score = if (checkAnswer(quizViewModel.currentQuestionAnswer, true)) {
-                        score + 1
-                    } else {
-                        score
-                    }
-                    message = if (checkAnswer(quizViewModel.currentQuestionAnswer, true)) {
-                        "Well Done"
-                    } else {
-                        "Try Again"
-                    }
+                    areAnswerButtonsEnabled = false
+                    onAnswerClick(true)
                 }
             ) {
                 Text("TRUE")
             }
             Button(
-                enabled = active,
+                enabled = areAnswerButtonsEnabled,
                 onClick = {
-                    active = false
-                    score = if (checkAnswer(quizViewModel.currentQuestionAnswer, false)) {
-                        score + 1
-                    } else {
-                        score
-                    }
-                    message = if (checkAnswer(quizViewModel.currentQuestionAnswer, false)) {
-                        "Well Done"
-                    } else {
-                        "Try Again"
-                    }
-                    scope.launch {
-                        snackbarHostState.showSnackbar(
-                            message = message,
-                            duration = SnackbarDuration.Short // Ensures auto-dismissal
-                        )
-                    }
+                    areAnswerButtonsEnabled = false
+                    onAnswerClick(false)
                 }
             ) {
                 Text("FALSE")
@@ -166,8 +173,8 @@ fun MainScreen(modifier: Modifier = Modifier, quizViewModel: QuizViewModel) {
         Row {
             Button(
                 onClick = {
-                    active = true
-                    quizViewModel.moveToPrev()
+                    areAnswerButtonsEnabled = true
+                    onPrevClick.invoke()
                 }
             ) {
                 Row {
@@ -182,9 +189,8 @@ fun MainScreen(modifier: Modifier = Modifier, quizViewModel: QuizViewModel) {
 
             Button(
                 onClick = {
-                    active = true
-                    showScore = currentIndex == 3
-                    quizViewModel.moveToNext()
+                    areAnswerButtonsEnabled = true
+                    onNextClick.invoke()
                 }
             ) {
                 Row {
@@ -197,32 +203,6 @@ fun MainScreen(modifier: Modifier = Modifier, quizViewModel: QuizViewModel) {
                 }
             }
         }
-
-        if (showToast) {
-            val context = LocalContext.current
-            Toast.makeText(
-                context,
-                message,
-                Toast.LENGTH_SHORT
-            ).show()
-            showToast = false
-        }
-
-        if (showScore) {
-            val context = LocalContext.current
-            Toast.makeText(
-                context,
-                "Your score is : $score",
-                Toast.LENGTH_SHORT
-            ).show()
-            score = 0
-            showScore = false
-        }
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
     }
 }
 
@@ -234,6 +214,12 @@ private fun checkAnswer(question: Boolean, answer: Boolean): Boolean {
 @Composable
 fun GreetingPreview() {
     GeoQuizTheme {
-        MainScreen(Modifier, quizViewModel = QuizViewModel(savedStateHandle = SavedStateHandle()))
+        MainScreen(
+            currentIndex = 0,
+            questionTextResId = R.string.question_1,
+            onAnswerClick = {},
+            onNextClick = {},
+            onPrevClick = {}
+        )
     }
 }

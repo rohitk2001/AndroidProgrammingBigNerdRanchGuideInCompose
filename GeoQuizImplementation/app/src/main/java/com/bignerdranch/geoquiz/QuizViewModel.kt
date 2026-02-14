@@ -14,27 +14,25 @@ class QuizViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel(
         Question(R.string.question_4, true)
     )
 
-    // Use StateFlow from savedStateHandle to automatically save/restore the index
-    private var currentIndexStateFlow: StateFlow<Int> = savedStateHandle.getStateFlow(CURRENT_INDEX_KEY, 0)
-
-    private var currentIndex: Int
-        get() = currentIndexStateFlow.value
-        set(value) {
-            savedStateHandle[CURRENT_INDEX_KEY] = value
-        }
+    val currentIndex: StateFlow<Int> = savedStateHandle.getStateFlow(CURRENT_INDEX_KEY, 0)
 
     val currentQuestionAnswer: Boolean
-        get() = questionBank[currentIndex].answer
+        get() = questionBank[currentIndex.value].answer
 
     val currentQuestionText: Int
-        get() = questionBank[currentIndex].textResId
+        get() = questionBank[currentIndex.value].textResId
 
     fun moveToNext() {
-        currentIndex = (currentIndex + 1) % questionBank.size
+        savedStateHandle[CURRENT_INDEX_KEY] = (currentIndex.value + 1) % questionBank.size
     }
 
     fun moveToPrev() {
-        currentIndex = if (currentIndex == 0) questionBank.size - 1 else (currentIndex - 1)
+        val newIndex = if (currentIndex.value == 0) {
+            questionBank.size - 1
+        } else {
+            currentIndex.value - 1
+        }
+        savedStateHandle[CURRENT_INDEX_KEY] = newIndex
     }
 
     fun getCurrentIndexFlow(): StateFlow<Int> = savedStateHandle.getStateFlow(CURRENT_INDEX_KEY, 0)
