@@ -1,0 +1,49 @@
+https://www.notion.so/Chapter-8-Android-SDK-Versions-and-Compatibility-3081feed638a806ca08dc8eee692494c
+
+Android SDK Versions
+
+A device with a proprietary version of Android is not able to run a new version of Android released by Google. Instead it must wait for a compatible proprietary upgrade.
+
+Minimum supported version
+
+Minimum SDK version your app can run on.
+**API level 23 (Android 6.0 Marshmallow) in 2026**
+
+We can also set target version and compile version in build.gradle file:
+ 
+
+`android {    
+    namespace = "com.bignerdranch.geoquiz"    
+    compileSdk = 34    
+    defaultConfig {        
+        applicationId = "com.bignerdranch.geoquiz"        
+        minSdk = 24        
+        targetSdk = 34 // Align targetSdk with compileSdk for stability  
+     }    
+     compileOptions {        
+         sourceCompatibility = JavaVersion.VERSION_17        
+         targetCompatibility = JavaVersion.VERSION_17    
+     }    
+     composeOptions {        
+         kotlinCompilerExtensionVersion = "1.5.13"    
+     }    
+}`
+
+Minimum SDK version
+
+The minSdk value is a hard floor below which the OS should refuse to install the app.
+
+Target SDK version
+
+The targetSdk value tells Android which API level your app is designed to run on.
+If we set this lower than latest available, then the new features will not be available for use, but the devices would be still able to install and run the app correctly.
+
+Compile SDK version
+
+The compileSdk specifies which version to use when building your code.
+
+Safely Adding code from later APIs
+
+To avoid the Android Lint errors for using features which are available for certain SDK but not min SDK, is to use @RequiresApi(Build.VERSION_CODES.S) on that feature/method.
+But when using or calling that method we need to add the below check:
+if(Build.VERSION.SDK_INT ≥ Build.VERSION_CODES.S) { // call that new method }
