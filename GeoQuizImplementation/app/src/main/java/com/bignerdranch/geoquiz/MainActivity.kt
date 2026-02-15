@@ -1,7 +1,9 @@
 package com.bignerdranch.geoquiz
 
 
+import android.os.Build
 import android.os.Bundle
+import android.text.Layout
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,7 +40,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.bignerdranch.geoquiz.ui.theme.GeoQuizTheme
 import kotlinx.coroutines.launch
 
@@ -157,81 +162,86 @@ fun MainScreen(
         areAnswerButtonsEnabled = true
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = stringResource(questionTextResId),
-            modifier = modifier.clickable(
-                onClick = {
-                    onNextClick.invoke()
-                }
-            )
-        )
-        Row {
-            Button(
-                enabled = areAnswerButtonsEnabled,
-                onClick = {
-                    areAnswerButtonsEnabled = false
-                    onAnswerClick(true)
-                }
-            ) {
-                Text("TRUE")
-            }
-            Button(
-                enabled = areAnswerButtonsEnabled,
-                onClick = {
-                    areAnswerButtonsEnabled = false
-                    onAnswerClick(false)
-                }
-            ) {
-                Text("FALSE")
-            }
-        }
-
-        Button(
-            onClick = {
-                onCheatClick.invoke()
-            }
+        Column(
+            verticalArrangement = Arrangement.SpaceEvenly,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Cheat!")
-        }
-
-        Row {
-            Button(
-                onClick = {
-                    areAnswerButtonsEnabled = true
-                    onPrevClick.invoke()
+            Text(
+                text = stringResource(questionTextResId),
+                modifier = modifier.clickable(
+                    onClick = {
+                        onNextClick.invoke()
+                    }
+                )
+            )
+            Row {
+                Button(
+                    enabled = areAnswerButtonsEnabled,
+                    onClick = {
+                        areAnswerButtonsEnabled = false
+                        onAnswerClick(true)
+                    }
+                ) {
+                    Text("TRUE")
                 }
-            ) {
-                Row {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = "Prev_Icon",
-                        tint = Color.Black
-                    )
-                    Text("Prev")
-                }
-            }
-
-            Button(
-                onClick = {
-                    areAnswerButtonsEnabled = true
-                    onNextClick.invoke()
-                }
-            ) {
-                Row {
-                    Text("Next")
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "Next_Icon",
-                        tint = Color.Black
-                    )
+                Button(
+                    enabled = areAnswerButtonsEnabled,
+                    onClick = {
+                        areAnswerButtonsEnabled = false
+                        onAnswerClick(false)
+                    }
+                ) {
+                    Text("FALSE")
                 }
             }
+
+            Button(
+                onClick = {
+                    onCheatClick.invoke()
+                }
+            ) {
+                Text("Cheat!")
+            }
+
+            Row {
+                Button(
+                    onClick = {
+                        areAnswerButtonsEnabled = true
+                        onPrevClick.invoke()
+                    }
+                ) {
+                    Row {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            contentDescription = "Prev_Icon",
+                            tint = Color.Black
+                        )
+                        Text("Prev")
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        areAnswerButtonsEnabled = true
+                        onNextClick.invoke()
+                    }
+                ) {
+                    Row {
+                        Text("Next")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = "Next_Icon",
+                            tint = Color.Black
+                        )
+                    }
+                }
+            }
         }
+        Text(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp), text ="API Level: ${Build.VERSION.SDK_INT}")
     }
 }
 
