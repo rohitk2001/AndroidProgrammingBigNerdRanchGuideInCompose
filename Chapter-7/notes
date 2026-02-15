@@ -1,0 +1,195 @@
+https://www.notion.so/Chapter-7-Your-Second-Activity-3071feed638a803b8c92f8f6322b8efc
+
+Creating New Activity
+
+This typically involves changing at least 3 files:
+    1. Kotlin class file
+    2. XML layout file
+    3. Application Manifest file
+
+We can use Android Studio’s New Android Activity wizard.
+
+** remember for Compose, we have to inherit ComponentActivity().
+
+Declaring Activities in Manifest
+
+Manifest is an XML file containing metadata that describes your application to the Android OS.
+Always named as AndroidManifest.xml, is located in app/manifests directory.
+** Every activity in an application must be declared in the manifest so that OS can access it.
+
+Below is added in application tag:
+
+`<activity    
+    android:name=".CheatActivity"    
+    android:exported="false" />`
+
+android:name attribute is required.
+dot at the start of this attribute’s value tells the OS that this activity’s class is in the package specified in the package attribute in the manifest element at the top of the file.
+
+Starting an Activity
+
+Simplest way one activity can start another is with the “startActivity(Intent) function.
+Using the startActivity(Intent) method makes a call to the part of OS called ActivityManager.
+ActivityManager then creates the Activity instance and calls its onCreate(Bundle?) function.
+It knows which activity to start from Intent parameter.
+
+Communicating with Intents
+
+Intent: It is an object that a component can use to communicate with the OS.
+`private fun startCheatActivity(){    
+    val intent = Intent(this, CheatActivity::class.java)    
+    startActivity(intent)
+}`
+
+Before starting the activity, the ActivityManager checks the package’s manifest for a declaration with the same name as the specified Class.
+If it finds the declaration, it starts the activity.
+Else we get ActivityNotFoundException, which will crash the app.
+
+Explicit and Implicit Intents
+
+Explicit Intent: Intent with a Context and a Class object.
+Used to start specific activities.
+
+Implicit Intent: When an activity in our application wants to start and activity in another application.
+** Possible as ActivityManager is from OS, is outside our application.
+
+Pasing Data Between Activities
+
+Using Intent extras:  Extras are arbitrary data that the calling activity can include with an intent.
+Extra is structured key-value pair.
+** An activity may be started from several different places, so we should define keys for extras on the activities that retrieve and use them.
+
+Eg: CheatActivity.kt
+
+`companion object {    
+    fun newIntent(packageContext: Context, answerIsTrue: Boolean): Intent{                    
+        return Intent(packageContext, CheatActivity::class.java).apply {                          
+          putExtra(EXTRA_ANSWER_IS_TRUE, answerIsTrue)        
+        }    
+    }
+}`
+
+A companion object allows you to access functions without having an instance of class, acts as static function in Java.
+Eg: MainActivity.kt
+
+`onCheatClick = {    
+    val intent = CheatActivity.newIntent(this, quizViewModel.currentQuestionAnswer)       
+    startActivity(intent)
+}`
+
+To access the extra in CheatActivty.kt :
+`answerIsTrue = intent.getBooleanExtra(EXTRA_ANSWER_IS_TRUE, false)`
+
+Activity.getIntent() always return the Intent that started the Activity.
+
+Getting result back from a child activity
+
+When you want to hear back from child activity, you register Parent activity for an ActivityResult using Activity Results API.
+
+registerForActivityResult()
+This function takes in two params:
+1. contract: defines the input and output of the Activity you are trying to start
+2. lambda: in this we parse the output that is returned
+
+Eg: MainActivity.kt
+
+`private val cheatLauncher = registerForActivityResult(
+   ActivityResultContracts.StartActivityForResult()
+) { result ->  
+  
+}`
+
+The contract which we are using is ActivityResultContracts.StartActivityForResult, its a basic contract that takes in an Intent was input and provides an ActivityResult as output.
+** there exists many other contracts & also create custom ones.
+
+`onCheatClick = {    
+    val intent = CheatActivity.newIntent(this, quizViewModel.currentQuestionAnswer)       
+    cheatLauncher.launch(intent)
+}`
+
+Setting a result
+
+Two methods we can call in child activity to send data back to parent:
+1. setResult(resultCode: Int)
+2. setResult(resultCode:Int, data: Intent)
+
+Typically result code is one of the pre-defined constants: Activity.RESULT_OK or Activity.RESULT_CANCELLED( or can use RESULT_FIRST_USER to define your own result code)
+
+Setting result codes is useful when the parent needs to take different action depending on how the child activity finished.
+Eg: If a child activity had an OK button and a CANCEL button, the child activity would set a different result code depending on which button was pressed. Parent activity would take a different action depending on  the result code.
+
+** Calling setResult(…) is not required by child activity always, if you do not distinguish between results, then you can let OS send a default result code.
+Because a result code is always sent to parent if the activity is started with startActivityForResult(…). Can receive default Activity.RESULT_CANCELLED on back press of child activity.
+
+Sending back an intent
+
+We are going to create an Intent, put extra on it, and then call Activity.setResult(Int, Intent) to get that data to parent activity.
+
+Eg: CheatActivity.kt
+`const val EXTRA_ANSWER_SHOWN = "com.bignerdranch.android.geoquiz.answer_shown"`
+
+`private fun setAnswerShownResult() {    
+    val data = Intent().apply {        
+        putExtra(EXTRA_ANSWER_SHOWN, true)    
+    }    
+    setResult(RESULT_OK, data)
+}`
+
+Handling a result
+
+Eg: QuizViewModel.kt
+
+`var isCheater: Boolean    
+    get() = savedStateHandle[IS_CHEATER_KEY] ?: false    
+    set(value) = savedStateHandle.set(IS_CHEATER_KEY, value)`
+
+Eg: MainActivity.kt
+`private val cheatLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+) { result ->    
+    if (result.resultCode == RESULT_OK) {        
+        quizViewModel.isCheater = result.data?.getBooleanExtra(EXTRA_ANSWER_SHOWN, false) ?: false    
+    }
+}`
+
+How Android Sees your Activities
+
+1. Click GeoQuiz app in the launcher, OS does not start the application.
+2. It starts an Activity in the application, which is the application’s launcher activity(MainActivity).
+** Launcher activity status is specified in the manifest by the intent-filter element.
+
+`<activity    
+    android:name=".MainActivity"    
+    android:exported="true"    
+    android:label="@string/app_name"    
+    android:theme="@style/Theme.GeoQuiz">    
+    **<intent-filter>        
+        <action android:name="android.intent.action.MAIN" />        
+        <category android:name="android.intent.category.LAUNCHER" />    
+    </intent-filter>**
+</activity>`
+
+1. After instance of MainActivity is onscreen, the user can press the CHEAT! button. When this happens, an instance of CheatActivity is started - on top of the MainActivity.
+** These activities exist in stack.
+2. Pressing Back button in CheatActivity pops this instance off the stack, and MainActivity resumes its position at the top.
+
+ActivityManager(OS) maintains a back stack, activities for all applications share this back-stack.
+
+** When we press back from MainActivity its not popped by Activity Manager whereas CheatActivity was, this was because MainActivity is declared as Launcher Activity.
+Launcher activity is kept in memory, which allows users to quickly resume using the app in a “warm-state” after navigating back instead of having to completely restart the application.
+
+Issue faced in Challenge
+
+How to survive rotation and send the value to parent activity:
+`GeoQuizTheme {    
+    // This survives rotation    
+    var hasCheated by rememberSaveable { mutableStateOf(false) }    
+    // Send result whenever hasCheated changes    
+    LaunchedEffect(hasCheated) {    
+        setAnswerShownResult(hasCheated)
+    }
+    CheatScreen(answerIsTrue, handleCheatButtonClick = {       hasCheated = true          })
+}`
+
+By storing the value using `rememberSaveable` we ensure it survives rotation.
+
