@@ -1,10 +1,12 @@
 package com.bignerdranch.geoquiz
 
+
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +47,16 @@ class MainActivity : ComponentActivity() {
 
     private val quizViewModel: QuizViewModel by viewModels()
 
+    // Activity Results API provides registerForActivityResult
+    private val cheatLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            quizViewModel.isCheater =
+                result.data?.getBooleanExtra(EXTRA_ANSWER_SHOWN, false) ?: false
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d(TAG, "onCreate(Bundle?) called")
@@ -55,6 +67,10 @@ class MainActivity : ComponentActivity() {
                 var score by rememberSaveable { mutableIntStateOf(0) }
                 val scope = rememberCoroutineScope()
                 val snackbarHostState = remember { SnackbarHostState() }
+
+                val judgementToast = stringResource(R.string.judgement_toast)
+                val correctToast = stringResource(R.string.correct_toast)
+                val incorrectToast = stringResource(R.string.incorrect_toast)
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -69,10 +85,10 @@ class MainActivity : ComponentActivity() {
                             if (isCorrect) {
                                 score++
                             }
-                            val message = if (isCorrect) {
-                                "Well Done"
-                            } else {
-                                "Try Again"
+                            val message = when {
+                                quizViewModel.isCheater -> judgementToast
+                                isCorrect -> correctToast
+                                else -> incorrectToast
                             }
                             scope.launch {
                                 snackbarHostState.showSnackbar(message)
@@ -87,7 +103,12 @@ class MainActivity : ComponentActivity() {
                             }
                             quizViewModel.moveToNext()
                         },
-                        onPrevClick = { quizViewModel.moveToPrev() }
+                        onPrevClick = { quizViewModel.moveToPrev() },
+                        onCheatClick = {
+                            val intent =
+                                CheatActivity.newIntent(this, quizViewModel.currentQuestionAnswer)
+                            cheatLauncher.launch(intent)
+                        }
                     )
                 }
             }
@@ -119,7 +140,6 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         Log.d(TAG, "onDestroy() called")
     }
-
 }
 
 @Composable
@@ -129,7 +149,8 @@ fun MainScreen(
     questionTextResId: Int,
     onAnswerClick: (Boolean) -> Unit,
     onNextClick: () -> Unit,
-    onPrevClick: () -> Unit
+    onPrevClick: () -> Unit,
+    onCheatClick: () -> Unit
 ) {
     var areAnswerButtonsEnabled by rememberSaveable { mutableStateOf(true) }
     LaunchedEffect(currentIndex) {
@@ -168,6 +189,14 @@ fun MainScreen(
             ) {
                 Text("FALSE")
             }
+        }
+
+        Button(
+            onClick = {
+                onCheatClick.invoke()
+            }
+        ) {
+            Text("Cheat!")
         }
 
         Row {
@@ -219,7 +248,8 @@ fun GreetingPreview() {
             questionTextResId = R.string.question_1,
             onAnswerClick = {},
             onNextClick = {},
-            onPrevClick = {}
+            onPrevClick = {},
+            onCheatClick = {}
         )
     }
 }

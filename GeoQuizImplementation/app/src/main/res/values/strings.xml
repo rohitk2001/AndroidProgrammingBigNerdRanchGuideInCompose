@@ -4,4 +4,9 @@
     <string name="question_2">Question-2</string>
     <string name="question_3">Question-3</string>
     <string name="question_4">Question-4</string>
+    <string name="correct_toast">Well Done</string>
+    <string name="incorrect_toast">Incorrect!</string>
+    <string name="warning_text">Are you sure you want to do this?</string>
+    <string name="cheat_button">SHOW ANSWER</string>
+    <string name="judgement_toast">Cheating is wrong.</string>
 </resources>
