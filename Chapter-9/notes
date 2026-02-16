@@ -1,0 +1,144 @@
+https://www.notion.so/Chapter-9-Fragments-3091feed638a803e86dde0b228caddb6
+
+UI Flexibility 
+
+Ability to compose and recompose an activity’s view at runtime depending on what the user or device requires.
+Activity were not designed with this flexibility in mind, they control an entire window of your application, one Activity should be able to render everything your app needs to show onscreen at a time.
+** Activity are tightly coupled to particular screen being used.
+
+Introducing Fragments
+
+This helps in making the UI flexible.
+A Fragment has a view of its own, often defined in separate layout file.
+Activity acts as a container for the fragments.
+
+Fragments are designed to hold reusable chunks of UI.
+Eg: Activity’s view  would compose of list fragment and detail fragment
+Therefore selecting another list item would display another/new detail view.
+
+Using fragments separates the UI of your app into building blocks, which is useful for more than just list-detail applications. Working with individual blocks, it is easy to build tab interfaces, tack on animated sidebars, and more.
+
+** A fragment is incapable of getting a view onscreen itself, only when it is inserted in an Activity’s hierarchy will its view appear.
+
+Setting Up a Fragment
+
+In build.gradle file:
+`implementation(libs.androidx.fragment.ktx)`
+In libs.version.toml file:
+`fragmentKtx = "1.5.5"`
+`androidx-fragment-ktx = { module = "androidx.fragment:fragment-ktx", version.ref = "fragmentKtx" }`
+
+Creating the Fragment class
+
+Create a Kotlin file for CrimeDetailFragment class.
+Eg: `import androidx.fragment.app.Fragment
+ class CrimeDetailFragment: Fragment() {    
+ }`
+
+Different types of fragments
+
+There are two classes within the Fragment name:
+1. android.app.Fragment: This is the version of fragment built into Android OS.
+This has the framework version and the v4 support library version.
+Both are legacy versions of Fragment class.
+The framework implementation of fragments was built into devices running API level 11 or higher.
+The fragment implementation was added to v4 support library to enable fragment support on older devices.
+2. androidx.fragment.app.Fragment: This is the jetpack version of fragments.
+But as of Android 9(API 28), the framework version of fragments is deprecated and earlier support library fragments have been moved to Jetpack libraries.
+
+Implementing Fragment lifecycle functions
+`class CrimeDetailFragment: Fragment() {    
+    private lateinit var crime: Crime            
+    override fun onCreate(savedInstanceState: Bundle?){   
+    super.onCreate(savedInstanceState)                
+    crime = Crime(           
+            id = UUID.randomUUID(),            
+            title = "",            
+            date = Date(),            
+            isSolved = false        
+        )    
+    }
+}`
+
+Fragments are also re-created on configuration changes by default.
+** Fragment lifecycle functions must be public, because they will be called by whichever Activity is hosting the fragment.
+
+** We do not inflate the fragment’s view in onCreate(Bundle?), only configure the instance.
+We create the view in onCreateView(LayoutInflater, ViewGroup?, Bundle?), this is where we inflate and bind the layout for the fragment’s view and return the inflated View to the hosting Activity.
+
+`override fun onCreateView(    
+    inflater: LayoutInflater,    
+    container: ViewGroup?,    
+    savedInstanceState: Bundle?
+): View? {    
+    return ComposeView(requireContext()).apply {        
+        setContent {                    
+        }    
+    }
+}` 
+
+Hosting a Fragment
+
+** For compose only projects, we do not need Fragments.
+
+To use a Fragment inside an Activity, the activity should be of type 
+`AppCompatActivity` and it should have its own layout xml file.
+
+FragmentContainerView
+
+This is used in MainActivity xml layout file, to contain fragments.
+Eg: activity_main.xml
+
+`<?xml version="1.0" encoding="utf-8"?>
+<androidx.fragment.app.FragmentContainerView    
+    android:id="@+id/fragment_container"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"    
+    android:layout_height="match_parent"
+    android:name="com.bignerdranch.criminalintent.CrimeDetailFragment"></androidx.fragment.app.FragmentContainerView>`
+
+With the help of attribute name, FragmentContainerView will manage to create your desired Fragment and insert it in activity’s layout.
+
+** If we are using AppCompatActivity, then we need to ensure the theme used is also Theme.AppCompat
+
+** UI overlapping with notch:
+1. Need to enable edge-to-edge in MainActivity by adding  enableEdgeToEdge() in onCreate().
+2. Apply System bar padding in our Composable.
+modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
+
+The Fragment Manager
+
+It is responsible for adding the fragments views to the activity’s view hierarchy and driving the fragments lifecycles.
+It handles 2 things:
+1. a list of fragments
+2. a back stack of fragment transaction
+** FragmentContainerView uses FragmentManager to create and host the fragment you specified in the android:name XML attribute.
+
+We can also attach fragments to activities using FragmentManager, also to remove, replace or alter navigation back stack.
+Eg: onCreate method in MainActivity.kt
+
+`if (savedInstanceState == null) {    
+    supportFragmentManager        
+        .beginTransaction()        
+        .add(R.id.fragment_container, CrimeDetailFragment())        
+        .commit()}`
+
+Checking for savedInstanceState as null, prevents creating duplicate components when the screen rotates or system otherwise re-creates your Activity.
+
+FragmentManager.beginTransaction() function creates and returns an instance of FragmentTransaction.
+The FragmentTransaction class uses fluent interface - function that configure FragmentTransaction return FragmentTransaction instead of Unit, which allows us to chain them together.
+
+A container view ID serves two purpose:
+1. Tells the FragmentManager where in the activity’s view the fragment’s view should appear.
+2. Used as unique identifier for a fragment in FragmentManager’s list.
+
+The fragment lifecycle
+
+It is similar to Activity lifecycle, it has Created, Started, and Resumed state.
+
+![image.png](attachment:299afdf7-f437-47fe-924c-3e2c5650ee0a:image.png)
+
+** Correspondance in lifecycle states
+Because a Fragment works on behalf of an Activity, it state should reflect the activity’s state, hence needs corresponding lifecycle functions to handle activity’s work.
+
+** Fragment lifecycle functions are called by the FragmentManger of the hosting activity, not the OS.
