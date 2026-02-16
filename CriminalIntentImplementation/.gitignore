@@ -1,0 +1,36 @@
+# Gitignore for Android projects
+
+# Generic
+.DS_Store
+*.log
+*.ntfs
+*.tmp
+
+# Android build output
+app/build/
+.gradle/
+*/build/
+
+# IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+local.properties
+captures/
+.navigation/
+
+# Gradle wrapper
+!gradle-wrapper.jar
+
+# Kotlin Multiplatform
+.kotlin/
+
+# External native build files
+.externalNativeBuild/
+.cxx/
+CMakeLists.txt.user
+
+# Local configuration files
+filehashes
+bin/
