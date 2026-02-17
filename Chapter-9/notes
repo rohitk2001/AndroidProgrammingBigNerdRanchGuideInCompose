@@ -142,3 +142,48 @@ It is similar to Activity lifecycle, it has Created, Started, and Resumed state.
 Because a Fragment works on behalf of an Activity, it state should reflect the activity’s state, hence needs corresponding lifecycle functions to handle activity’s work.
 
 ** Fragment lifecycle functions are called by the FragmentManger of the hosting activity, not the OS.
+
+What happens if we add Fragment while Activity is in Resumed state?
+In this case FragmentManager immediately walks the fragment through whatever steps are necessary to get it caught up to Activity’s state.
+
+Fragments and memory management
+
+Since Fragments can be swapped in and out as the user navigates your app, they are usually retained in memory, to keep it ready to use in-case user presses back button.
+
+**But its view is not kept it in memory, since Fragment is not being displayed.
+onDestroyView() and onCreateView() are used respectively to destroy and re-create view.
+
+Since we hold reference to View in binding property in onCreateView(…), the view is not cleared from memory, this leads to wastage of resources. As we keep the view in Memory, even though it will be re-created again by calling onCreateView() or entire Fragment is destroyed.
+
+Solution: Null out any references to view in onDestroyView() lifecycle callback.
+This will help in performance boost by freeing up unused resources.
+
+**In case of Compose, the system handles this for us, so no need to manually nullify compose reference.
+[1.](http://1.no/) No binding Property: 
+In your CrimeDetailFragment, you are creating the ComposeView as a local variable inside the onCreateView method and returning it directly. You are not holding it in a fragment-level property like you would with View Binding (private var binding: ResultProfileBinding? = null). Since there is no persistent reference held by the fragment instance itself, there's nothing for you to nullify.
+
+2.Lifecycle Management: 
+The ComposeView is a View just like any other Android View. The fragment's View lifecycle is responsible for managing it. When onDestroyView is called, the fragment's entire view hierarchy, including the ComposeView you returned, is detached from the window and becomes eligible for garbage collection. The system handles this for you.
+
+3.The Role of setContent: 
+The setContent block is where the magic happens. It links your Composable functions to the ComposeView and, more importantly, to the lifecycle of the host. The ComposeView automatically disposes of its composition when it's detached from the window, which happens during the fragment's onDestroyView phase. This ensures that any state (remember, mutableStateOf, etc.) and resources held by your composables are properly released.
+
+Eg: CrimeDetailFragment.kt
+private val *binding: FragmentCrimeDetailBinding? = null
+private val binding
+    get() = checkNotNull(_binding) { 
+        “Cannot access binding as its null”
+    }
+override onCreateView(…): View{
+    _binding = FragmentCrimeDetailBinding(layoutInflater, container, false)
+   return binding.root
+}
+override onDestroyView(){
+    super.onDestroyView()
+    _binding = null
+}*
+
+Testing
+Fragments have FragmentScenario to test them in isolation, for UI tests.
+debugImplementation “androidx.fragment:fragment-testing:1.4.1”
+** FragmentScenario library inserts an Activity into our app and uses it to host our Fragment in a container it can control for testing it.
