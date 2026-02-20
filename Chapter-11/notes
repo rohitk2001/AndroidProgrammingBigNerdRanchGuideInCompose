@@ -1,0 +1,47 @@
+https://www.notion.so/Chapter-11-Creating-User-Interfaces-with-Layouts-and-Views-30d1feed638a80e6adf7cfc6ba8ff5e6 
+
+Nested layouts like LinearLayout inside a LinearLayout creates following issues:
+1. Nesting makes it hard for us and developers to read and edit.
+2. Nesting can degrade your app performance. As nested layout s can take long time for the Android OS to measure and layout.(which might result in delay in showing views to users)
+
+Constraint Layout
+
+Instead of using nested layouts, we can add series of constraints to our layout.
+Eg: ImageView, if we want it to be towards right, we will attach constraint from its right edge to right edge of parent. If we want it in centre, then will add constraint from all four edges.
+
+For sizing views we have 3 options:
+1. Lets the views decide(wrap_content)
+2. Decide yourself
+3. Let your view expand to fit your constraints.
+
+Constraint controls in design tab
+1. View options: Show all constraints, this reveals all constraints that are set up in the preview and blueprint views.
+2. Toggle Autoconnect: When this is enabled, constraints will be automatically configured as you drag views into the preview.
+3. Clear all Constraints: Removes all existing constraints in layout file.
+4. Infer Constraints: Android studio will automatically create constraints for you. But it's only triggered when you select this button. Whereas Autoconnect is active any time you add a view to your layout file.
+
+View size setting types
+
+| Setting Type    | Value        | Usage                                                                                                     |
+| fixed           | xdp          | Specifies an explicit size for the view. The size is specified in dp units and should be positive number. |
+| wrap content    | wrap_content | Assigns the view its desired size.(will be being enough to show its contents)                             |
+| match contraint | 0dp          | Allows the view to stretch to meet the specified constraints.                                             |
+
+Constraint Layout’s Inner Working
+
+Eg: app:layout_constraintTop_toTopOf=”parent”
+Layout Parameters: All attributes that begin with “layout_”. They are directions to that view’s parent, not the view itself. They tell the parent layout how to arrange the Chile element within itself. Eg: layout_width, layout_height etc.
+constraintTop: Means top constraint on your View.
+toTopOf: Means constraint is connected to top edge of parent.
+
+Margins VS Padding
+
+In XML: Margin attributes are layout parameters, they determine the distance between views.
+Padding, tells the view how much bigger than its contents it should draw itself.
+In Compose: There is no margin modifier, spacing inside and outside is handled via padding modifier. This is achieved via order of modifiers used.
+
+Challenge: Format Date
+
+`Text(    
+    text = DateFormat.format("EEEE, MMM dd, yyyy", crime.date).toString()
+)`
