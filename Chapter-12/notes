@@ -1,0 +1,381 @@
+https://www.notion.so/Chapter-12-Coroutines-and-Databases-30d1feed638a80999488ee9e7e6fbb27
+
+
+Introduction to Asynchronous code on Android
+
+Thread
+They are responsible for managing execution of your program.
+It has a sequence of instructions that it executes, performing them in the order they are declared in.
+On an individual device, system can have multiple threads, and each one of them can execute simultaneously.
+
+Main Thread / UI Thread
+
+It is the primary thread, which manages the work the user interacts with directly.
+In Android, all code that directly interacts with the UI must be executed on the main thread.
+Android forbids, code that makes network requests or interacts with a database on main thread, as these kind of operations can take up long time to execute, so they can block the thread, will result in application to be frozen.
+
+Background Thread
+
+This should be used for heavy blocking tasks/long running task.
+
+Coroutines(Kotlin’s first party solution)
+
+They are based on the idea of functions being able to suspend, meaning that a function can be paused until a long running operation completes.
+When the code running in a coroutine is suspended, the thread that the coroutine was executing on is free to work on other things like drawing UI, responding to touch events etc.
+
+** Under the hood, Kotlin’s coroutines use threads to perform work in parallel.
+
+Using coroutines
+`implementation(libs.kotlinx.coroutines.android)`
+`kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }`
+
+Coroutine builder: It is a function that creates a new coroutine in a coroutine scope.
+Eg: launch
+Coroutine scope: It has the control over how the coroutine’s code executes. Includes setting up coroutine, cancelling the coroutine, and choosing which thread will be used to run the code.
+Eg: viewModelScope
+
+`init {    
+    viewModelScope.launch {        
+        val crimeList = mutableListOf<Crime>()        
+        for(i in 0 until 100) {            
+            crimeList += Crime(                
+                id = UUID.randomUUID(),                
+                title = "Crime #$i",                
+                date = Date(),                
+                isSolved = i % 2 == 0            
+            )       
+         }        
+         _crimes.value = crimeList    
+    }
+}`
+
+Since we have launched a coroutine, we can call suspending functions within it.
+Suspending function: A function which can be passed until a long-running operation is completed.
+To convert regular function to suspending function, is to just add a suspend modifier to function definition. 
+But making a function as suspending, limits the number of place you can invoke it from. Since either you need a coroutine scope to invoke it or can call from another suspending function.
+Eg: delay(timeMillis: Long), this delays a coroutine without blocking a thread.
+
+`init {    
+    Log.d("CrimeListViewModel", "init starting")    
+    viewModelScope.launch {        
+        Log.d("CrimeListViewModel", "coroutine launched")        
+        crimes += loadCrimes()
+        Log.d("CrimeListViewModel", "delay finished")       
+    }
+
+    suspend fun loadCrimes(): List<Crime> {    
+        val crimeList = mutableListOf<Crime>()  
+        delay(5000)              
+        for(i in 0 until 100) {            
+            crimeList += Crime(                
+                id = UUID.randomUUID(),                
+                title = "Crime #$i",                
+                date = Date(),                
+                isSolved = i % 2 == 0            
+            )        
+        }    
+        return crimeList
+    }
+}`    
+
+Because delay is running inside a coroutine, during that 5 seconds that function is counting, our UI is still capable of drawing any new updates, and can instantly respond to user input.
+** If delay was not called in coroutine, the user would have got system dialog saying, “App isn't responding”, resulting in ANR(App Not Responding), since init block runs on Main thread.
+Thread.sleep(5000) is the blocking equivalent which would have resulted in ANR.
+
+Consuming Data from coroutines
+
+We should use viewLifecycleScope when using coroutines with Fragments, so that we execute coroutines code only when Fragment has View.
+When we launch a new coroutine, a Job instance is returned to us, which can be used to cancel coroutine.
+Eg: Launch our work in onStart() and cancel it in onStop()
+
+`class CrimeListFragment : Fragment() {    
+    private val crimeListViewModel: CrimeListViewModel by viewModels()    
+    private var job: Job? = null    
+    
+    override fun onCreateView(        
+        inflater: LayoutInflater,        
+        container: ViewGroup?,        
+        savedInstanceState: Bundle?    
+     ): View? {        
+      ...
+     }    
+
+     override fun onStart() {        
+         super.onStart()        
+         job = viewLifecycleOwner.lifecycleScope.launch {            
+             val crimes = crimeListViewModel.loadCrimes()   
+             binding.crimeRecyclerView.adapter = CrimeListAdapter(crimes)     
+         }    
+     }    
+   
+     override fun onStop(){        
+         super.onStop()        
+         job?.cancel()    
+     }   
+}`
+
+Drawback: In this we have to keep reference to a Job.
+Solution: repeatOnLifecycle(…), with this we can execute coroutine code while your fragment is in a specified lifecycle state.
+Eg: This also does the same function as above
+`class CrimeListFragment : Fragment() {    
+    private val crimeListViewModel: CrimeListViewModel by viewModels()    
+    private var job: Job? = null    
+    
+    override fun onCreateView(        
+        inflater: LayoutInflater,        
+        container: ViewGroup?,        
+        savedInstanceState: Bundle?    
+     ): View? {        
+      ...
+     }    
+
+     override fun onViewCreated(
+         view: View,
+         savedStateInstance: Bundle?
+     ) {
+         super.onViewCreated(view, savedInstanceState)
+         viewLifeCylceOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+             val crimes = crimeListViewModel.loadCrimes()   
+             binding.crimeRecyclerView.adapter = CrimeListAdapter(crimes)     
+         }
+     }  
+}`
+
+**ViewModel survives rotation, hence the init block is not executed again, so the delay is also not shown again. As we use state-flow, the list data also not lost.
+
+But since in above approach(XML), on rotation Fragment is created again, which then in `onViewCreated` calls loadCrimes again resulting in showing the delay again.
+
+Creating a Database(Room)
+
+Room is a Jetpack architecture component library that simplifies database setup and access.
+It allows you to define your database structure and queries using annotated Kotlin classes.
+
+To use this we need to add room-runtime, room-ktx, room-compiler library.
+`alias(libs.plugins.kotlin.ksp)` // added in both project and app level build.gradle
+
+`implementation(libs.kotlinx.coroutines.android)
+implementation(libs.androidx.room.runtime)
+implementation(libs.androidx.room.ktx)
+ksp(libs.androidx.room.compiler)`
+
+`kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room"}
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room"}
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room"}`
+
+`kotlin-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp"}`
+
+** using kapt is older and slower method, newer way is to use ksp
+
+room-runtime: This is for the Room API, containing all the classes and annotations we will need to define our database.
+room-ktx: This adds kotlin specific functionality and support for coroutines.
+room-compiler: For room compiler to generate our database implementation based on annotations we specified.
+
+Three steps to create a database with Room:
+1. Annotating your model class to make it a database entity
+2. Creating the class that will represent the database itself
+3. Creating a type convertor so that your database can handle your model data
+
+Defining Entities
+
+Room structures the database tables for your application based on the entities you define.
+Entities are model classes you create and annotate with @Entity.
+Eg: Crime.kt
+
+`@Entitydata 
+class Crime(    
+    @PrimaryKey val id: UUID,    
+    val title: String,    
+    val date: Date,    
+    val isSolved: Boolean
+)` 
+
+Now, each Row in the table will represent an individual Crime, each property defined on the class will be a Column.
+Primary Key: It is a column that holds data that is unique for each entry or row, so that it can be used to look up individual entries.
+
+Creating a database class
+
+A single entity class could be used across multiple databases.
+Eg: database/ CrimeDatabase.kt
+`@Database(entities = [ Crime::class ], version = 1)
+abstract class CrimeDatabase: RoomDatabase() {
+}`
+
+@Database annotation tells Room that this class represents a database in our app.
+First param is list of entity classes.
+Second param is the version database.
+
+Creating a type convertor
+
+Room uses SQLIte under the hood, which is an open-source relational database like MySQL or PostgreSQL.
+SQLite stores its data in simple files, you can read and write using SQLite library.
+
+Room is able to store primitive types, enum classes, and UUID type with ease in underlying SQLite database tables, but other types will cause issues like Date, that where we need a type convertor.
+
+Type convertor: It tells Room how to convert a specific type to the format it needs to store in database.
+Eg: database/ CrimeTypeConverters.kt
+
+`class CrimeTypeConverters {    
+    @TypeConverter    
+    fun fromDate(date: Date): Long {        
+        return date.time    
+    }    
+    @TypeConverter    
+    fun toDate(millisSinceEpoch: Long): Date {        
+        return Date(millisSinceEpoch)    
+    }
+}`
+
+CrimeDatabase.kt
+`@Database(entities = [ Crime::class ], version = 1)
+@TypeConverters(CrimeTypeConverters::class)
+abstract class CrimeDatabase: RoomDatabase() {}`
+
+Defining a Data Access Object(DAO)
+
+A DAO is an interface that contains functions for each database operation you want perform.
+Eg: database/ CrimeDao.kt
+
+`@Dao
+interface CrimeDao {    
+    @Query("SELECT * FROM crime")    
+    suspend fun getCrimes(): List<Crime>    
+  
+    @Query("SELECT * FROM crime WHERE id=(:id)")    
+    suspend fun getCrime(id: UUID): Crime
+}` 
+
+@Query annotation indicates that both methods are meant to pull information out of the database, rather than inserting, updating or deleting items.
+
+** Since CrimeDao is an interface, Room will handle generating the concrete versions of this class. For this to happen we need to hook up our Dao with Database class.
+Eg:
+
+`@Database(entities = [ Crime::class ], version = 1)
+@TypeConverters(CrimeTypeConverters::class)
+abstract class CrimeDatabase: RoomDatabase() {    
+    abstract fun crimeDao(): CrimeDao
+}` 
+
+Accessing the Database using Repository Pattern
+
+A repository class encapsulates the logic for accessing the data from a single source or set of sources.
+It determines how to fetch and store a particular set of data, whether locally in a database or from a remote server.
+Eg: CrimeRepository.kt
+
+`class CrimeRepository private constructor(context: Context) {    
+    companion object {        
+        private var INSTANCE: CrimeRepository? = null        
+        fun initialize(context: Context) {            
+            if (INSTANCE == null) {                
+                INSTANCE = CrimeRepository(context)            
+            }        
+        }        
+        fun get(): CrimeRepository {            
+            return INSTANCE ?: throw IllegalStateException("CrimeRepository must be initialized")        
+        }    
+    }
+}`
+
+CrimeRepository is a Singleton.
+This means there will only ever be one instance of it in your app process.
+
+** A singleton exists as long as the application stays in memory, so storing any properties on singleton will keep them available throughout any lifecycle changes in your activities and fragments.
+BUT they are destroyed when Android removes application from memory.
+
+** Due to the implementation  of getter function, if we have not called initialize() before using it, will result in throwing an exception, so we need to make sure to do so when application is starting.
+
+Solution: Creating Application subclass
+Eg: CriminalIntentApplication.kt
+
+`class CriminalIntentApplication: Application() {    
+    override fun onCreate() {        
+        super.onCreate()        
+        CrimeRepository.initialize(this)    
+    }
+}`
+
+Application.onCreate method is called by System when our application is first loaded into memory. This is not recreated on configuration changes.
+
+**But in order fro your application class to be used by the system, it needs to be registered in your manifest.
+Eg: just add the name attribute to existing application tag
+`android:name = ".CriminalIntentApplication"`
+
+We add reference to our database to repository:
+
+`private val database: CrimeDatabase = Room   
+     .databaseBuilder(        
+         context.applicationContext,        
+         CrimeDatabase::class.java,        
+         "crime-database"    
+      )    
+      .build()`
+
+Room.databaseBuilder() creates a concrete implementation of our abstract CrimeDatabase using the three parameters.
+We pass application context, because singleton will live longer than any other activity classes.
+”crime-database”, is the name of the database file you want to create.
+
+Then we add below methods to repository so that other components can perform database operations:
+
+`suspend fun getCrimes(): List<Crime> = database.crimeDao().getCrimes()
+suspend fun getCrime(id: UUID): Crime = database.crimeDao().getCrime(id)`
+
+To link your local database file to repository:
+
+`private val database: CrimeDatabase = Room    
+    .databaseBuilder(        
+        context.applicationContext,        
+        CrimeDatabase::class.java,        
+        "crime-database"    
+     )    
+     .createFromAsset("crime-databse")    
+     .build()` 
+
+Finally we access the database in our View Model:
+
+`class CrimeListViewModel : ViewModel() {        
+    private val crimeRepository = CrimeRepository.get()    
+    private val _crimes = MutableStateFlow<List<Crime>>(emptyList())    
+    val crimes: StateFlow<List<Crime>> = _crimes.asStateFlow()    
+
+    init {        
+        viewModelScope.launch {            
+            delay(5000)           
+            _crimes.value = loadCrimes()        
+        }    
+    }    
+    suspend fun loadCrimes(): List<Crime> {        
+        return crimeRepository.getCrimes()    
+    }
+}`
+
+Keeping the Changes Flowing
+
+We use Flow to store the List of crimes,  then return that from repository, and collect it accordingly in Fragment / ViewModel.
+
+StateFlow
+
+It is a specialised version of Flow, that is specifically designed to share application state.
+It always has a value that observers can collect from its stream.
+It starts with initial value, and caches the latest value that was emitted into the stream.
+
+Addressing Schema Warning
+
+A database schema represents the structure of a database, including what tables are in database, what columns are in those tables, and any constraints on and relationships between those tables.
+
+Solution 1: Providing a location for the export of schema file 
+In app/build.gradle file
+javaCompileOptions { 
+    annotationProcessorOptions { 
+        arguments += [
+            “room.schemaLocation” : “$projectDir/schemas”.toString(),
+        ]
+    }
+}
+
+Solution 2: Disable the export
+
+`@Database(entities = [ Crime::class ], version = 1, exportSchema = false)
+@TypeConverters(CrimeTypeConverters::class)
+abstract class CrimeDatabase: RoomDatabase() {    
+    abstract fun crimeDao(): CrimeDao
+}`
