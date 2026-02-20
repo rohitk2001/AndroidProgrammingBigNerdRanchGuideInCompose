@@ -18,11 +18,12 @@ class MainActivity : androidx.appcompat.app.AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
-        if (savedInstanceState == null) {
-            supportFragmentManager
-                .beginTransaction()
-                .add(R.id.fragment_container, CrimeDetailFragment())
-                .commit()
-        }
+        // Not needed since in activity_main.xml in FragmentContainerView we are passing name attribute.
+//        if (savedInstanceState == null) {
+//            supportFragmentManager
+//                .beginTransaction()
+//                .add(R.id.fragment_container, CrimeListFragment())
+//                .commit()
+//        }
     }
 }

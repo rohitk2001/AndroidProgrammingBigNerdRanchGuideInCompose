@@ -41,8 +41,7 @@ class CrimeDetailFragment : Fragment() {
             id = UUID.randomUUID(),
             title = "",
             date = Date(),
-            isSolved = false,
-            onCheckBoxClick = {}
+            isSolved = false
         )
     }
 
@@ -53,14 +52,25 @@ class CrimeDetailFragment : Fragment() {
     ): View? {
         return ComposeView(requireContext()).apply {
             setContent {
-                CrimeDetail(crime)
+                CrimeDetail(
+                    crime,
+                    onCheckBoxClick = {
+                        crime = crime.copy(isSolved = it)
+                    }
+                )
             }
         }
     }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        //binding = null
+    }
+
 }
 
 @Composable
-fun CrimeDetail(crime: Crime) {
+fun CrimeDetail(crime: Crime, onCheckBoxClick: (Boolean) -> Unit) {
     Column(
         modifier = Modifier
             .windowInsetsPadding(WindowInsets.safeDrawing)
@@ -87,8 +97,8 @@ fun CrimeDetail(crime: Crime) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = false,
-                onCheckedChange = { 
-                    crime.onCheckBoxClick(it)
+                onCheckedChange = {
+                    onCheckBoxClick(it)
                 }
             )
             Text(text = stringResource(R.string.crime_solved_label))
@@ -100,12 +110,12 @@ fun CrimeDetail(crime: Crime) {
 @Composable
 private fun CrimeDetailPreview() {
     Column(modifier = Modifier.fillMaxSize()) {
-        CrimeDetail(crime = Crime(
-            id = TODO(),
-            title = TODO(),
-            date = TODO(),
-            isSolved = TODO(),
-            onCheckBoxClick = TODO()
-        ))
+        CrimeDetail(
+            crime = Crime(
+                id = TODO(),
+                title = TODO(),
+                date = TODO(),
+                isSolved = TODO()
+            ), onCheckBoxClick = {})
     }
 }
