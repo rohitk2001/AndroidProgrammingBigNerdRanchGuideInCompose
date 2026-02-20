@@ -1,0 +1,274 @@
+https://www.notion.so/Chapter-10-Displaying-Lists-with-RecyclerView-30a1feed638a80caa2e6cf929313a422
+
+In compose we have LazyColumn to display large scrollable lists of items without using excessive memory, as using Recycler View in XML.
+
+| Feature | XML RecyclerView | Compose LazyColumn |
+| --- | --- | --- |
+| **Core Principle** | Recycles a limited number of `View`objects. | Composes only visible items and recomposes when needed. |
+| **ViewHolder Pattern** | Required (`RecyclerView.ViewHolder`). | Not required — composables act as item holders. |
+| **Adapter** | Must implement `RecyclerView.Adapter`. | No adapter. Use `LazyColumn { items(...) }`. |
+| **Layout Management** | Requires `LayoutManager` (Linear, Grid, etc.). | Built-in vertical list. Use `LazyRow` or `LazyVerticalGrid` when needed. |
+| **Data Updates** | Use `notifyDataSetChanged()` or `DiffUtil`. | Automatically reacts to state updates. |
+| **Item Spacing** | `addItemDecoration()` | `Arrangement.spacedBy()` or `Divider()` |
+| **Item Click Handling** | `setOnClickListener()` inside ViewHolder | `Modifier.clickable` |
+
+** AVOID HAVING METHOD CALLBACKS IN DATA CLASS.
+
+State Less XML VS State Full Compose
+
+The Old Way (XML) - Imperative U
+IIn the XML world, the UI is a collection of stateful objects.
+•You create a RecyclerView.
+•You create an Adapter.
+•You give the Adapter your crimes list once.
+The crimes list is just a mutableListOf.
+If you were to change an item in this crimes list after you've already given it to the adapter, what would happen? Nothing. 
+The RecyclerView has no idea the original list has changed. 
+You would have to manually tell the UI to update by calling adapter.notifyDataSetChanged() or adapter.submitList() again.
+This is an imperative approach: "Hey UI, the data has changed. Go and redraw yourself.”
+
+The New Way (Compose) - Declarative UI
+Jetpack Compose flips this entire model on its head. 
+In Compose, the UI is a function of state.
+UI = f(State)
+This means the UI doesn't have its own internal state. It is a stateless "dumb" screen that simply renders whatever data you give it. 
+If you want the UI to change, you don't command it to change. Instead, you change the state, and Compose automatically and intelligently redraws the parts of the UI that depended on that state.
+This is why your current crimes list(mutableList) is not suitable for Compose. It's just a List, not an observable State.
+
+ViewModel lifecycle with Fragments
+
+ViewModel lifecycle with Fragments has two states: created or destroyed/non-existent.
+Scenario 1: On Rotation
+
+1.Rotation Starts: You rotate the phone from portrait to landscape.
+2.CrimeListFragment is Destroyed: The Android system decides it needs to tear down the current UI to rebuild it for the new configuration (landscape).
+    ◦onPause() is called.
+    ◦onStop() is called.
+    ◦onDestroyView() is called (the UI Views are destroyed).
+    ◦onDestroy() is called. Your CrimeListFragment instance is now gone. Poof.
+3.The ViewModel Survives: Now for the magic. When you use the by viewModels() property delegate, the ViewModel is not tied to the lifecycle of the Fragment instance. Instead, it's tied to the lifecycle of a component that lives longer than the Fragment—the ViewModelStore. The system keeps this store alive across the configuration change.
+4.CrimeListFragment is Re-created: The system needs to draw the screen in landscape, so it creates a brand new CrimeListFragment instance.
+    ◦The new Fragment's constructor is called.
+    ◦onCreate() is called on the new instance
+5. by viewModels() is Executed Again: Now, your code reaches this line in the new Fragment instance:
+    private val crimeListViewModel: CrimeListViewModel by viewModels()
+The by viewmodels() delegate is smart. It doesn't just create a new CrimeListViewModel. Instead, it asks the ViewModelStore, "Do you already have a CrimeListViewModel for this scope (i.e., for this CrimeListFragment's host Activity/Fragment)?"The ViewModelStore replies, "Yes! I kept the old one from before the rotation!"
+6.The Old ViewModel is Re-attached: The by viewModels() delegate then hands your new Fragment instance a reference to the exact same ViewModel instance from before the rotation. All the data inside it (_crimes.value) is perfectly preserved.
+7.UI is Rebuilt: The new Fragment instance proceeds to onCreateView, onViewCreated, etc. It starts collecting the StateFlow from the crimeListViewModel. Since the ViewModel is the same and its data is intact, the UI is drawn in its previous state, but now in landscape.
+
+Scenario 2: User navigates away(Permanent Death) / Hosting activity replaces the fragment with different one
+
+1.The user is looking at the crime list.
+2.The user presses the Back button, and the app exits (or they navigate to a completely different part of the app).
+3.The CrimeListFragment's onDestroy() method is called.
+4.Because the Fragment is being finished for good, the ViewModel's onCleared() method is called, and the ViewModel is destroyed and removed from memory.
+In this scenario, the Fragment and ViewModel die together. This is the simple case.
+
+Scenario 3: Fragment transaction is added to back stack
+
+When the activity replaces the current fragment with different one, but if transaction is added to back stack, the fragment instance and its ViewModel will not be destroyed.
+
+Adding a Recycler View
+
+This is also part of Jetpack library.
+implementation ‘androidx.recyclerview:recyclerview:1.2.1’
+Step 1: This will be added/implemented in your Fragment layout file.
+
+Eg: fragment_crime_list.xml
+
+`<androidx.recyclerview.widget.RecyclerView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/crime_recycler_view"
+/>` 
+
+Step 2: Hook up the view to the Fragment
+
+Eg: CrimeListFragment.kt
+ `private var _binding: CrimeListFragmentBinding? = null
+ private val binding    
+    get() = checkNotNull(_binding) {        
+        "Cannot access binding because it is null. Is the view visible?"    
+    }`
+
+`override fun onCreateView(    
+    inflater: LayoutInflater,    
+    container: ViewGroup?,    
+    savedInstanceState: Bundle?
+): View? {    
+    _binding = CrimeListFragmentBinding.inflate(inflater, container, false)    
+    return super.onCreateView(inflater, container, savedInstanceState)
+}
+override fun onDestroyView() {    
+    super.onDestroyView()    
+    _binding = null
+}` 
+
+Step 3: Implementing a Layout Manager
+
+Recycler view on its own does not do much, just recycles or reuse views to display a list of data.
+It delegates all the other responsibilities of displaying that list of data to other components:
+LayoutManager, ViewHolder, and Adapter.
+
+RecyclerView delegates the responsibility for positioning items on screen to the LayoutManager.
+It positions each item and also defines how scrolling works.
+If Layout Manager is not present, Recycler View cannot display anything.
+
+LinearLayoutManager: It will position the items in the list vertically, one after the other.
+Eg: CrimeListFragment.kt
+`override fun onCreateView(    
+    inflater: LayoutInflater,    
+    container: ViewGroup?,    
+    savedInstanceState: Bundle?
+): View? {    
+   binding.crimeRecyclerView.layoutManager = LinearLayoutManager(context)    
+   return binding.root
+}`
+
+Step 4: Creating an Item View Layout
+
+RecyclerView is sub-class of ViewGroup.
+It displays a list of child View objects, called item views.
+
+Each item view represents a single object from the list of data backing the recycler view
+Each item displayed on the Recycler View will have its own view hierarchy.
+Eg: layout/list_item_crime.xml
+`<LinearLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="8dp">`
+    `<TextView
+      android:id="@id/crime_title"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:text="Crime Title"/>
+   <TextView
+      android:id="@id/crime_date"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:text="Crime Date"/>`
+This results in creation of one row.
+
+Step 5: Implementing a ViewHolder
+
+A ViewHolder stores a reference to an item’s  view.
+Recycler View expects each item to be wrapped in an instance of ViewHolder.
+Eg: CrimeListAdapter.kt
+`class CrimeHolder(
+    val binding: ListItemCrimeBinding
+): RecyclerView.ViewHolder(binding.root) {
+   
+}` 
+
+** RecylcerView never creates Views by themselves, it always creates ViewHolders, which bring their itemViews along for the ride.
+
+Step 6: Implementing Adapter to Populate the RecyclerView
+
+Recycler View never creates ViewHolder itself, instead it asks an adapter.
+Adapter: It is a controller object that sits between the RecyclerView and the data set that RecyclerView should display.
+
+Responsibilities of Adapter:
+1. creating necessary ViewHolders when asked
+2. binding data to ViewHolders from model layer when asked
+
+Eg: CrimeListAdapter.kt
+`class CrimeListAdapter(
+    private val crimes: List<Crime>,
+}: RecyclerView.ViewHolder(binding.root) {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int
+    ): CrimeHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        val binding = LisItemCrimeBinding.inflate(inflater, parent, false)
+        return Crimeholder(binding)
+    }
+
+    override fun onBindingViewHolder(
+        holder: CrimeHolder,
+        position: Int
+    ) {
+        val crime = Crime[position]
+        holder.apply {
+            binding.crimeTitle.text = crime.title
+            binding.crimeDate.text = crime.data.toString()
+        }
+    }
+
+    override fun getItemCount() = crimes.size
+}`
+
+Adpater.onCreateViewHolder
+It is responsible for creating a binding to display, wrapping the view in a view holder, and returning the result.
+
+Adapter.onBindViewHolder
+It is responsible for populating a given holder with the crime from a given position.
+
+**RecyclerView is not aware of Crime object or the list of Crime objects to be displayed.
+Instead the adapter knows all.
+**Communication Between RecyclerView and Adapter
+1. RecyclerView asks for ViewHolder by calling onCreateViewHolder(…), then Adapter returns the ViewHolder.
+2. RecyclerView asks to populate the ViewHolder with data by calling onBindViewHolder(…) at certain index, Adapter then does so .
+
+Step 6: Setting the RecyclerView’s Adapter
+
+Eg: CrimeListFragment.kt
+`override fun onCreateView(    
+    inflater: LayoutInflater,    
+    container: ViewGroup?,    
+    savedInstanceState: Bundle?
+): View? {  
+   _binding = FragmentCrimeListBinding.inflate(inflater, container, false)  
+   binding.crimeRecyclerView.layoutManager = LinearLayoutManager(context) 
+   
+   val crimes = crimeListViewModel.crimes
+   val adapter = CrimeListAdapter(crimes)
+   binding.crimeRecyclerView.adapter = adapter
+   
+   return binding.root
+}`
+
+** Always be efficient in your onBindViewHolder(…), otherwise the scroll animation could feel really chunky/slow.
+
+Recycling Views
+
+In this the items in list are not created in memory all at once, only the ones visible to user are created.
+When a view is scrolled off the screen, the it is reused instead of deleting it.
+Hence it recycles old ViewHolders and passes those into onBindViewHolder(…), and so onCreateViewHolder(…) is called less.
+
+Cleaning up Binding List Items
+
+Adapter should knows as little as possible about inner working details of view holder.
+Eg: CrimeListAdapter.kt
+`class CrimeHolder(
+    val binding: ListItemCrimeBinding
+): RecyclerView.ViewHolder(binding.root) {
+   fun bind(crime: Crime){
+      binding.crimeTitle.text = crime.title
+      binding.crimeDate.text = crime.data.toString()
+   }
+}`
+`class CrimeListAdapter(
+    private val crimes: List<Crime>,
+}: RecyclerView.ViewHolder(binding.root) {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int
+    ): CrimeHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        val binding = LisItemCrimeBinding.inflate(inflater, parent, false)
+        return Crimeholder(binding)
+    }
+
+    override fun onBindingViewHolder(
+        holder: CrimeHolder,
+        position: Int
+    ) {
+        val crime = Crime[position]
+        holder.bind(crime)
+    }
+
+    override fun getItemCount() = crimes.size
+}`
