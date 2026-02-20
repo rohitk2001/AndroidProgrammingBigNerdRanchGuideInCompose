@@ -56,10 +56,6 @@ class CrimeListFragment : Fragment() {
             }
         }
     }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-    }
 }
 
 @Composable
