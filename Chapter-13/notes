@@ -1,2 +1,513 @@
+https://www.notion.so/Chapter-13-Fragment-Navigation-30e1feed638a8085893afc46fefbb672
 
+## Performing Navigation
 
+Navigation Component in Jetpack Library: This helps you define screens and paths between them.
+It relies on navigation graph, which defines a group of screen destinations as well as the paths between destinations.
+Nav graph is contained in XML file.
+It is agnostic to type of destination used in our app - activities or fragments, but Google provided first-party support for Fragments, but can define and use for other destinations.
+
+**Earlier navigation was done using FragmentTransactions, but it was difficult to use and prone to errors. Under the hood Navigation library still uses those APIs to perform navigation, but it provides that functionality in a safer and easier to use form.
+
+## Single Activity Architecture
+
+An app that uses single activity architecture has one activity and multiple fragments.
+Each fragment acts as its own screen.
+Doing this we ensure that our app is in control of everything being rendered on-screen.
+
+If we use multiple activities, the system will take control of navigation and animations, which sometimes result in unexpected behaviour.
+
+** Multi-Activities is to be used, when every major screen has its own independent flow.
+Want to utilise different task modes of Activity for different screen, to implement Deeplink, Notification, External entry point etc. For large apps, there are different modules owned by different teams, hence preferred to have own Activities to create isolation.
+SEPARATE ACTIVITY CAN ISOLATE LIFECYCLE  & MEMORY PRESSURE, improve performance.
+
+## Implementing Navigation component library
+
+Step 1: Need to include two separate dependencies: 
+
+1. navigation-ui-ktx : for handling core functionality
+2. navigation-fragment-ktx: enables support for fragment
+
+Step 2: Create new nav_graph xml file 
+
+New → Android Resource File, 
+name it nav_graph,
+set the resource type as Navigation
+
+Step 3: Adding destination in nav_graph
+
+<?xml version=”1.0” encoding=”utf-8”?>
+<navigation xmlns:android=”http://schemas.android.com/apk/res/android”
+    xmlns:tool=”http://schemas.android.com/tools”
+    android:id=”@id/nav_graph”
+    app:startDestination=”@id/crimeListFragment”>
+
+    <fragment
+        android:id=”@id/crimeListFragment”
+        android:name=”com.bignerdranch.android.criminalIntent.CrimeListFragment”
+        android:label=”CrimeListFragment”
+        tools:layout=@layout/fragment_crime_list
+    </fragment>
+</navigation>
+
+** By using tools:layout attribute on navigation destination, you can provide a preview of how that destination will look to users by referencing the XML layout.
+
+Starting destination: Specifies the screen that first appears when you start your activity.
+
+Step 4: Connect nav_graph to UI
+
+Done by defining a container in your Activity to host your navigation graph.
+This container is responsible for swapping out fragments as the user navigates between different screens.
+Eg: To use NavHostFragment inside a FragmentContainerView: activity_main.xml
+
+`<?xml version="1.0" encoding="utf-8"?>
+<androidx.fragment.app.FragmentContainerView    
+    android:id="@+id/fragment_container"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"    
+    android:layout_height="match_parent"
+    android:name="androix.navigation.fragment.NavHostFragment"
+    ~~android:name="com.bignerdranch.criminalintent.CrimeDetailFragment">~~
+</androidx.fragment.app.FragmentContainerView>`
+
+Step 5: Navigating to the detail screen
+
+Add second destination, CrimeDetaiFragment to nav_graph.
+Then to enable navigation between the two screens, we need to define “action” that specifies the screen you start from and screen you end at when navigating.
+Eg: nav_graph/xml
+<?xml version=”1.0” encoding=”utf-8”?>
+<navigation xmlns:android=”http://schemas.android.com/apk/res/android”
+    xmlns:tool=”http://schemas.android.com/tools”
+    android:id=”@id/nav_graph”
+    app:startDestination=”@id/crimeListFragment”>
+
+    <fragment
+        android:id=”@id/crimeListFragment”
+        android:name=”com.bignerdranch.android.criminalIntent.CrimeListFragment”
+        android:label=”CrimeListFragment”
+        tools:layout=@layout/fragment_crime_list
+        **<action
+            android:id=”@id/action_crimeListFragment_to_crimeDetailFragment”
+            app:destination=”@id/crimeDetailFragment”
+        />**
+    </fragment>
+
+    <fragment
+        android:id=”@id/crimeDetailFragment”
+        android:name=”com.bignerdranch.android.criminalIntent.CrimeDetailFragment”
+        android:label=”CrimeDetailFragment”
+        tools:layout=@layout/fragment_crime_detail
+     </fragment>
+</navigation>
+
+** Auto-arrange button helps in Android studio arranging the destinations in nav graph neatly in preview.
+
+Step 6: Using this in recycler view
+
+Eg: Passing lambda expression in CrimeListAdapter.kt
+`class CrimeHolder(
+    val binding: ListItemCrimeBinding
+): RecyclerView.ViewHolder(binding.root) {
+   fun bind(crime: Crime, onCrimeClicked: () -> Unit){
+      binding.crimeTitle.text = crime.title
+      binding.crimeDate.text = crime.data.toString()
+      binding.root.setOnClickListener { 
+          onCrimeClicked()
+      }
+   }
+}`
+
+Eg: Hooking up the adapter
+`class CrimeListAdapter(
+    private val crimes: List<Crime>,
+    private val onCrimeClicked: () -> Unit
+}: RecyclerView.ViewHolder(binding.root) {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int
+    ): CrimeHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        val binding = LisItemCrimeBinding.inflate(inflater, parent, false)
+        return Crimeholder(binding)
+    }
+
+    override fun onBindingViewHolder(
+        holder: CrimeHolder,
+        position: Int
+    ) {
+        val crime = Crime[position]
+        holder.bind(crime, onCrimeClicked)
+    }
+
+    override fun getItemCount() = crimes.size
+}`
+
+Step 7: Using NavController
+
+In Navigation library, this class helps in performing Navigation, with this we can navigate to new screens, implement Back button etc.
+** With the NavHostFragment specified in activity_main.xml we already have access to its instance.
+All we need to do is to find it using: findNavController
+This function will search the view hierarchy and fragment for NavController and return it to you.
+Once NavController is found, we use its navigate method to perform navigation.
+
+Eg: CrimeListFragment.kt
+`override fun onViewCreated(    
+   view: View, 
+   savedStateInstance: Bundle?
+) {  
+    super.onViewCreated(view, savedStateInstace)
+   
+    viewLifeCycleOwner.lifecycleScope.launch {
+        viewLifeCycleOwner.repeatOnLifeCycle(LifeCycle.State.STARTED) {
+            crimeListViewModel.crimes.collect { crimes -> 
+                binding.crimeRecyclerView.adapter = 
+                    CrimeListAdaper(crimes){
+                        findNavController().navigate(
+                        R.id.`com.bignerdranch.android.criminalIntent.CrimeDetailFragment
+                                               )
+                    `}
+            }
+        }
+    }
+}`
+
+**import fragment version of findNavController
+
+## Passing Data to Fragment
+
+Classic Way: Using a Bundle to store key-value pairs for your arguments, but this is error prone.
+Safe Args plugin: This generates code for you to package up data when performing navigation and un-package data once at the destination.
+
+In project level build.gradle:
+plugins {
+    id ‘androidx.navigation.safeargs.kotlin’ version ‘2.4.1’ apply false
+}
+In app level build.gradle
+plugins {
+    id ‘androidx.navigation.safeargs’
+}
+
+The Safe Args plugin generates classes based on the contents of the navigation graph.
+Eg: Direction classes, that contain all the information needed to perform navigation, including ID of action. 
+It also generates functions within its destinations classes for each possible action within its destination.
+Eg: CrimeListFragmentDirections.showCrimDetail()
+where R.id.show_crime_detail is the id declared in action.
+
+Eg: CrimeListFragment.kt
+`override fun onViewCreated(    
+   view: View, 
+   savedStateInstance: Bundle?
+) {  
+    super.onViewCreated(view, savedStateInstace)
+   
+    viewLifeCycleOwner.lifecycleScope.launch {
+        viewLifeCycleOwner.repeatOnLifeCycle(LifeCycle.State.STARTED) {
+            crimeListViewModel.crimes.collect { crimes -> 
+                binding.crimeRecyclerView.adapter = 
+                    CrimeListAdaper(crimes){
+                        findNavController().navigate(
+                        CrimeListFragmentDirections.showCrimeDetail()
+                        ~~R.id.`com.bignerdranch.android.criminalIntent.CrimeDetailFragment~~
+                                               )
+                    `}
+            }
+        }
+    }
+}`
+
+Letting the CrimeDetailFragment accept argument:crimeId
+Eg: nav_graph.xml
+<?xml version=”1.0” encoding=”utf-8”?>
+<navigation xmlns:android=”http://schemas.android.com/apk/res/android”
+    xmlns:tool=”http://schemas.android.com/tools”
+    android:id=”@id/nav_graph”
+    app:startDestination=”@id/crimeListFragment”>
+
+    <fragment
+        android:id=”@id/crimeListFragment”
+        android:name=”com.bignerdranch.android.criminalIntent.CrimeListFragment”
+        android:label=”CrimeListFragment”
+        tools:layout=@layout/fragment_crime_list
+        **<action
+            android:id=”@id/action_crimeListFragment_to_crimeDetailFragment”
+            app:destination=”@id/crimeDetailFragment”
+        />**
+    </fragment>
+
+    <fragment
+        android:id=”@id/crimeDetailFragment”
+        android:name=”com.bignerdranch.android.criminalIntent.CrimeDetailFragment”
+        android:label=”CrimeDetailFragment”
+        tools:layout=@layout/fragment_crime_detail
+        <argument 
+            android:name=”crimeId”
+            app:argType=”java.util.UUID” />
+     </fragment>
+</navigation>
+
+We need to update the lambda in CrimeListAdapter.kt:
+`class CrimeHolder(
+    val binding: ListItemCrimeBinding
+): RecyclerView.ViewHolder(binding.root) {
+   fun bind(crime: Crime, onCrimeClicked: (crimeId: UUID) -> Unit){
+      binding.crimeTitle.text = crime.title
+      binding.crimeDate.text = crime.data.toString()
+      binding.root.setOnClickListener { 
+          onCrimeClicked(crime.id)
+      }
+   }
+}`
+
+`class CrimeListAdapter(
+    private val crimes: List<Crime>,
+    private val onCrimeClicked: (crimeId: UUID) -> Unit
+}: RecyclerView.ViewHolder(binding.root) {
+...
+}`
+
+Now use the crimeID to pass into nav arguments:
+Eg: CrimeListFragment.kt
+`override fun onViewCreated(    
+   view: View, 
+   savedStateInstance: Bundle?
+) {  
+    super.onViewCreated(view, savedStateInstace)
+   
+    viewLifeCycleOwner.lifecycleScope.launch {
+        viewLifeCycleOwner.repeatOnLifeCycle(LifeCycle.State.STARTED) {
+            crimeListViewModel.crimes.collect { crimes -> 
+                binding.crimeRecyclerView.adapter = 
+                    CrimeListAdaper(crimes){ crimeId -> 
+                        findNavController().navigate(
+                            CrimeListFragmentDirections.showCrimeDetail(crimeId)`
+~~~~                                               )
+                    `}
+            }
+        }
+    }
+}`
+
+The Safe Args plugin generates classes that hold all the arguments for a destination, naming them with the name of the destination plus “Args”.
+Eg: CrimeDetailFragment.kt
+private const val TAG = “CrimeDetailFragment
+class CrimeDetailFragment: Fragment() { 
+     private lateinit var crime: Crime
+     private val args: CrimeDetailFragmentArgs by navArgs()
+
+     override fun onCreate(savedStateInstance: Bundle?) {
+         super.onCreate(savedStateInstance)
+         crime = Crime(
+             id = , title = , date = , isSolved = 
+         )
+         Log.d(TAG, args.crimeId)
+     }
+}
+
+Unidirectional Data Flow
+
+This architecture pattern encapsulates two forces - data from back end and input from user.
+State(ViewModel)(sends data) → UI
+UI(send user input) → State(ViewModel)
+
+1. Fragment will hold reference to state flow which is in ViewModel, update its UI whenever its updates.
+2. If user does an UI input, Fragment will send that data to ViewModel.
+3. ViewModel will then update the state, and send the updated value back to Fragment.
+
+** We will use MutableStateFlow, for private to our ViewModel, and
+use StateFlow for access to Fragments, to maintain un-directional flow.
+
+Updating the database
+
+Changes made on CrimeDetail page needs to reflect on CrimeList page, for that we need to update the database with the updated values.
+
+Eg: CrimeDao.kt
+
+`@Dao
+interface CrimeDao {    
+    @Query("SELECT * FROM crime")    
+    fun getCrimes(): Flow<List<Crime>>    
+    @Query("SELECT * FROM crime WHERE id=(:id)")    
+    suspend fun getCrime(id: String): Crime        
+    @Update    
+    suspend fun updateCrime(crime: Crime)
+}`
+Eg: CrimeRepository.kt : Expose new dao function
+
+`suspend fun updateCrime(crime: Crime) {    
+    database.crimeDao().updateCrime(crime)
+}`
+Eg: CrimeDetailViewModel.kt: Save the latest crime value to database using update method
+
+`override fun onCleared() {    
+    super.onCleared()    
+    crime.value?.let {        
+        viewModelScope.launch {            
+            crimeRepository.updateCrime(it)        
+        }    
+    }
+}`
+When we navigate away from fragment, the onCleared() of ViewModel is called, hence perfect to save the changes to database that time.
+
+** Now doing this will not result in the list being updated:
+This is because coroutines scope are tied to lifecycle of components they are associated to. Hence when ViewModel is not alive, so it the coroutines not alive too.
+Hence when ViewModel is destroyed, all the work running within ViewModelScope is cancelled.
+
+SOLUTION: GlobalScope
+It is the coroutines scope that is available globally throughout the entire application lifecycle.
+Work that is launched in this scope is never cancelled, but if the Application is stopped, then work being done in globalScope will too stop.
+
+** BUT WE NEED TO BE VERY CAREFUL USING IT, AS IT CAN CONSUME LOT OF RESOURCES IF NOT HANDLED PROPERLY.
+
+Eg:
+`class CrimeRepository private constructor(
+    context: Context, 
+    private val coroutineScope: CoroutineScope = GlobalScope
+) { 
+    fun updateCrime(crime: Crime) {    
+        coroutineScope.launch {        
+            database.crimeDao().updateCrime(crime)    
+        }
+    }
+}`
+In CrimeDetailViewModel, do not use viewModelScope
+
+`override fun onCleared() {    
+    super.onCleared()    
+    crime.value?.let {        
+        crimeRepository.updateCrime(it)    
+    }
+}`
+
+WHY WE DID NOT USE GLOBALSCOPE IN VIEWMODEL:
+[1.It](http://1.it/) Breaks Structured Concurrency: The single most important concept in Kotlin Coroutines is Structured Concurrency. This means that a coroutine's lifetime is tied to the scope it was launched from.◦viewModelScope is tied to the ViewModel's lifecycle. When the ViewModel is destroyed (onCleared() is called), viewModelScope is automatically cancelled. Any coroutines running inside it are stopped. This is safe and prevents leaks.◦GlobalScope is tied to the entire application's lifecycle. A coroutine launched in GlobalScope will continue to run as long as the application process is alive, completely ignoring the ViewModel's destruction.
+2.You Create a "Zombie" Coroutine: Let's trace what happens when you use GlobalScope and the user navigates back from the detail screen:
+◦The user presses the back button.◦The CrimeDetailScreen is removed from the back stack.◦The CrimeDetailViewModel is no longer needed, so the system calls its onCleared() method.
+◦Inside onCleared(), you launch a new coroutine using GlobalScope.
+◦The ViewModel object is then marked for garbage collection and destroyed.
+◦But the coroutine you just launched in GlobalScope is still running! It now holds a reference to the crimeRepository and potentially other objects from a ViewModel that no longer exists. This is a classic memory [leak.
+3.No](http://leak.3.no/) Error Handling or Cancellation: Since the GlobalScope coroutine is disconnected from any specific component, it's a "fire-and-forget" operation. If the database update fails, you have no easy way to handle the error. If the user quickly re-enters the screen and leaves again, you could have multiple "zombie" coroutines trying to write to the database simultaneously, leading to race conditions and unpredictable data.
+4.Makes Testing Impossible: It's extremely difficult to write reliable tests for code that uses GlobalScope. Test frameworks rely on structured concurrency to manage and wait for coroutines to complete. GlobalScope coroutines run independently, making your tests flaky and unreliable.
+
+# Compose Navigation
+
+Step 1: Add the compose navigation dependency:
+
+Eg: libs.version.toml
+navVersion = "2.7.7”
+androidx-navigation-compose = { 
+    group = "androidx.navigation", name = "navigation-compose", version.ref = "navVersion" 
+}
+Eg: build.gradle(app)
+implementation(libs.androidx.navigation.compose)
+
+Step 2: Define Navigation Routes
+
+Create CrimeIntentNavigation.kt, and define below:
+
+`object CrimeIntentDestinations {    
+    const val CRIME_LIST_ROUTE = "crime_list"    
+    const val CRIME_DETAIL_ROUTE = "crime_detail"    
+    const val CRIME_ID_ARG = "crimeId"
+}` 
+
+Step 3: Refactor MainActivity to Host the navigation
+
+For this we would need MainActivity to be ComponentActivity type.
+`class MainActivity : ComponentActivity() {    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)        
+        enableEdgeToEdge()        
+        setContent {            
+            CriminalIntentTheme {                
+                Surface(                    
+                    modifier = Modifier.fillMaxSize(),                    
+                    color = MaterialTheme.colorScheme.background                
+                ) {                    
+                    val navController = rememberNavController()                                           NavHost(                        
+                        navController = navController,                                                        startDestination = CrimeIntentDestinations.CRIME_LIST_ROUTE                       ) {                                                                                       composable(route = CrimeIntentDestinations.CRIME_LIST_ROUTE) {                                 CrimeListScreen(                                                                          onCrimeClick = { crimeId ->                                                               navController.navigate(
+"${CrimeIntentDestinations.CRIME_DETAIL_ROUTE}/${crimeId}"                                                                )                                
+                                }                            
+                            )                        
+                        }       
+                 
+                        composable(                            
+                            route = "${
+CrimeIntentDestinations.CRIME_DETAIL_ROUTE}/{${CrimeIntentDestinations.CRIME_ID_ARG
+                            }}",                            
+                            arguments = listOf(                                                                       navArgument(CrimeIntentDestinations.CRIME_ID_ARG) {                                       type = NavType.StringType                                                         }                            
+                            )                        
+                         ) { backStackEntry ->                            
+                             val crimeId =                                            backStackEntry.arguments?.getString(CrimeIntentDestinations.CRIME_ID_ARG)                                          CrimeDetailScreen(                                                                        crimeId = crimeId                            
+                             )                        
+                          }                    
+                      }                
+                  }            
+              }        
+          }    
+      }
+}`
+
+** Passing viewmodel as param in composable file:
+Eg: CrimeListScreen.kt
+
+`@Composablefun 
+CrimeListScreen(    
+    onCrimeClick: (String) -> Unit = {},    
+    viewModel: CrimeListViewModel = viewModel()
+) {    
+    val crimes by viewModel.crimes.collectAsState()    
+}`
+
+→ Passing a whole ViewModel down to a composable function is an anti-pattern.
+
+→ But in pure compose architecture, Activity should be responsible for setting up navigation, and each screen(compose file) should manage its own view-model.
+
+** Keeping Factory in compose file:
+Eg: CrimeDetailScreen.kt
+
+`@Composablefun 
+CrimeDetailScreen(    
+    crimeId: String?,    
+    viewModel: CrimeDetailViewModel = viewModel(        
+        factory = CrimeDetailViewModelFactory(crimeId)    
+    )
+) {    
+    val crime by viewModel.crime.collectAsState()    
+    crime?.let { CrimeDetailContent(crime = it) }
+}
+
+class CrimeDetailViewModelFactory(    
+    private val crimeId: String?
+) : ViewModelProvider.Factory {    
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {        
+        if (modelClass.isAssignableFrom(CrimeDetailViewModel::class.java) 
+            && crimeId != null
+        ) {            
+            return CrimeDetailViewModel(crimeId) as T        
+        }        
+        throw IllegalArgumentException("Unknown ViewModel class or null crimeId")    
+    }
+}`
+
+This is recommended, instead of keeping it in view-model companion object, as doing so will be ANTI-PATTERN.
+A ViewModel's job is to manage UI-related data and business logic. It should not be responsible for its own creation or the creation of its dependencies.
+
+** When making change to data-class which is is being used in Room database, you need to update the database version.
+Along with updating the version number in RoomDatabase file, need to add migration plan in Repository.
+`class CrimeRepository private constructor(context: Context) { 
+    private val migrationFromOneToTwo = object : Migration(1, 2) {    
+        override fun migrate(db: SupportSQLiteDatabase) {        
+            db.execSQL("ALTER TABLE Crime ADD COLUMN suspect TEXT NOT NULL DEFAULT ''")    
+    }
+    private val database: CrimeDatabase = Room.databaseBuilder(                               context.applicationContext,            
+        CrimeDatabase::class.java,            
+        "crime-database"        
+    ).createFromAsset("crime-database")        
+    .addMigrations(migrationFromOneToTwo)        
+    .fallbackToDestructiveMigration()        
+    .build()
+}`
+
+Passing data
+
+We used compose navigation arguments to pass data, particularly using the route to do so.
