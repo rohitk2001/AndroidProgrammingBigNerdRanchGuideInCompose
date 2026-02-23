@@ -5,25 +5,61 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.bignerdranch.criminalintent.navigation.CrimeIntentDestinations
 import com.bignerdranch.criminalintent.ui.theme.CriminalIntentTheme
+import com.bignerdranch.criminalintent.views.CrimeDetailScreen
+import com.bignerdranch.criminalintent.views.CrimeListScreen
 
-class MainActivity : androidx.appcompat.app.AppCompatActivity() {
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContentView(R.layout.activity_main)
-        // Not needed since in activity_main.xml in FragmentContainerView we are passing name attribute.
-//        if (savedInstanceState == null) {
-//            supportFragmentManager
-//                .beginTransaction()
-//                .add(R.id.fragment_container, CrimeListFragment())
-//                .commit()
-//        }
+        setContent {
+            CriminalIntentTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    val navController = rememberNavController()
+                    NavHost(
+                        navController = navController,
+                        startDestination = CrimeIntentDestinations.CRIME_LIST_ROUTE
+                    ) {
+                        composable(CrimeIntentDestinations.CRIME_LIST_ROUTE) {
+                            CrimeListScreen(
+                                onCrimeClick = { crimeId ->
+                                    navController.navigate(
+                                        "${CrimeIntentDestinations.CRIME_DETAIL_ROUTE}/${crimeId}"
+                                    )
+                                }
+                            )
+                        }
+
+                        composable(
+                            route = "${CrimeIntentDestinations.CRIME_DETAIL_ROUTE}/{${CrimeIntentDestinations.CRIME_ID_ARG}}",
+                            arguments = listOf(
+                                navArgument(CrimeIntentDestinations.CRIME_ID_ARG) {
+                                    type = NavType.StringType
+                                }
+                            )
+                        ) { backStackEntry ->
+                            val crimeId =
+                                backStackEntry.arguments?.getString(CrimeIntentDestinations.CRIME_ID_ARG)
+                            CrimeDetailScreen(
+                                crimeId = crimeId
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
