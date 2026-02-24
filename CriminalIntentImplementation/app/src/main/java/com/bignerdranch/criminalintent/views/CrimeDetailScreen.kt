@@ -11,11 +11,18 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -27,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bignerdranch.criminalintent.R
 import com.bignerdranch.criminalintent.data.Crime
 import com.bignerdranch.criminalintent.viewmodel.CrimeDetailViewModel
+import java.util.Date
 
 @Composable
 fun CrimeDetailScreen(
@@ -37,11 +45,18 @@ fun CrimeDetailScreen(
 ) {
     val crime by viewModel.crime.collectAsState()
     crime?.let {
-        CrimeDetailContent(crime = it, onTitleChange = { newTitle ->
-            viewModel.updateTitle(newTitle)
-        }, onSolvedChange = { isSolved ->
-            viewModel.updateIsSolved(isSolved)
-        })
+        CrimeDetailContent(
+            crime = it,
+            onTitleChange = { newTitle ->
+                viewModel.updateTitle(newTitle)
+            },
+            onSolvedChange = { isSolved ->
+                viewModel.updateIsSolved(isSolved)
+            },
+            onDateChange = { date ->
+                viewModel.updateDate(date)
+            }
+        )
     }
 }
 
@@ -56,11 +71,16 @@ class CrimeDetailViewModelFactory(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrimeDetailContent(
-    crime: Crime, onTitleChange: (String) -> Unit,
-    onSolvedChange: (Boolean) -> Unit
+    crime: Crime,
+    onTitleChange: (String) -> Unit,
+    onSolvedChange: (Boolean) -> Unit,
+    onDateChange: (Date) -> Unit
 ) {
+    var showDateDialog by rememberSaveable { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .windowInsetsPadding(WindowInsets.safeDrawing)
@@ -77,7 +97,9 @@ fun CrimeDetailContent(
             }
         )
         Text(text = stringResource(R.string.crime_details_label))
-        Button(enabled = false, onClick = {}) {
+        Button(enabled = true, onClick = {
+            showDateDialog = true
+        }) {
             Text(modifier = Modifier.fillMaxWidth(), text = crime.date.toString())
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -88,6 +110,32 @@ fun CrimeDetailContent(
                 }
             )
             Text(text = stringResource(R.string.crime_solved_label))
+        }
+
+        if (showDateDialog) {
+            val datePickerState = rememberDatePickerState(initialSelectedDateMillis = crime.date.time)
+            DatePickerDialog(
+                onDismissRequest = { showDateDialog = false },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            onDateChange(datePickerState.selectedDateMillis?.let { Date(it) }
+                                ?: Date())
+                            showDateDialog = false
+                        }
+                    ) {
+                        Text(text = "Confirm")
+                    }
+                },
+                modifier = Modifier,
+                dismissButton = {
+                    Button(onClick = { showDateDialog = false }) {
+                        Text(text = "Cancel")
+                    }
+                }
+            ) {
+                DatePicker(state = datePickerState)
+            }
         }
     }
 }

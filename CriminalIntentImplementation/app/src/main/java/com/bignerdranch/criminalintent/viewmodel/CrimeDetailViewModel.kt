@@ -7,6 +7,7 @@ import com.bignerdranch.criminalintent.repository.CrimeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Date
 
 class CrimeDetailViewModel(crimeId: String) : ViewModel() {
     private val crimeRepository = CrimeRepository.Companion.get()
@@ -26,6 +27,10 @@ class CrimeDetailViewModel(crimeId: String) : ViewModel() {
 
     fun updateIsSolved(solved: Boolean) {
         _crime.value = _crime.value?.copy(isSolved = solved)
+    }
+
+    fun updateDate(date: Date) {
+        _crime.value = _crime.value?.copy(date = date)
     }
 
     override fun onCleared() {
