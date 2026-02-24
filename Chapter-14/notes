@@ -1,0 +1,160 @@
+https://www.notion.so/Chapter-14-Dialogs-and-DialogFragment-3111feed638a8079aca2dd0328991aa4
+
+### Dialog
+
+They demand attention and inout from the user.
+DatePickerDialog: Used to display Date dialog, it's a subclass of AlertDialog.
+It displays a date selection prompt to the user and provides a listener interface you can use to capture the selection.
+
+### Creating a DialogFragment
+
+It is recommended to display a DataPickerDialog in a DialogFragment, although can be done without that too.
+** DatePickerDialog will vanish if the device is rotated, but if wrapped in Fragment, then the dialog will be re-created and put back on screen after rotation.
+
+Eg: DatePickerFragment.kt
+class DatePickerFragment: DialogFragment() { 
+    override fun onCreateDialog(savedStateInstance: Bundle?): Dialog {
+        val calendar = Calendar.getInstance()
+        val initialYear = calendar.get(Calendar.YEAR)
+        val initialMonth = calendar.get(Calendar.MONTH)
+        val initialDay = calendar.get(Calendar.DAY_OF_MONTH)
+
+        return DatePickerDialog(requireContext(), null, initialYear, initialMonth, initialDay)
+    }
+}
+
+** DialogFragment will not have a view of its own, as its technically fixed as a Dialog.
+If you need to customise the appearance or content of the dialog, you will do that by picking the dialog most appropriate for what you want to display.,
+
+### Showing a DialogFragment
+
+Adding the DatePickerFragment as dialog in nav_graph.xml
+Eg:
+<fragment 
+    android:id=”@+id/crimeDetailFragment”
+    android:name=”com.bignerdranch.android.criminalIntent.CrimeDetailFragment”
+    android:label=”CrimeDetailFragment”
+    tools:layout=”@layout/fragment_Crime_detail”/>
+    <argument
+        android:name=”crimeId”
+        app:argType=”java.util.UIID” />
+    <action
+        android:id=”@+id/select_date”
+        app:destination=”@id/datePickerFragment”/>
+</fragment>
+
+<dialog
+    android:id=”@+id/datePickerFragment”
+    android:name=”com.bignerdranch.android.criminalIntent.DatePickerFragment”
+    android:label=”DatePickerFragment” />
+
+Now we will use this action in CrimeDetailFragment.kt
+Eg:
+class CrimeDetailFragment: Fragment(){
+    private fun updateUi(crime: Crime) {
+        binding.apply {
+            if(crimeTitle.text.toString() ≠ crime.title) { crimeTitle.setText(crime.Title)}
+            crimeDate.text = crime.date.toString()
+            crimeDate.setOnClickListener { 
+                findNavController().navigate(CrimeDetailFragmentDirections.selectDate())
+            }
+            crimeSolved.isChecked = crime.isSolved
+        }
+    }
+}
+
+### Passing Data Between Two Fragments
+
+We need to pass data from DatePickerFragment to CrimeDetailFragment then back to CrimeListFragment.
+
+This we will do using FragmentsResults API.
+
+1. We will add date argument in DatePickerFragment dialog.
+Now we need to pass the date as well, when we are navigating to DatePickerFragment, on click of date button, in CrimeDetailFragment.
+2. DatePickerFragment, now needs to initialise the DatePickerDialog with the information being sent from CrimeDetailFragment.
+3. To return data back to CrimeDetailFragment, we need to keep track of relationship between Fragments(parent-child) which will be done by FragmentResultsAPI.
+4. Setting a fragment result
+setFragmentListener(requestKey:String, listener: ((requestKey: String, bundle: Bundle)→Unit))
+It uses a requestKey: that will be shared between the the two fragments and a lambda expression that will be invoked when CrimeDetailFragment is in the started lifecycle state with a result to consume.
+5. Define requestKey in DatePickerFragment.kt
+companion object {
+    const val REQUEST_KEY_DATE = “REQUEST_KEY_DATE”
+}
+6. Setting listener in CrimeDetailFragment.kt
+class CrimeDetailFragment: Fragment() {
+    …
+    setFragmentListener(
+        DatePickerFragment.REQUEST_KEY_DATE
+    ) { requestKey, bundle → 
+
+    }
+}
+7. Set the fragment result in DatePickerFragment.kt
+class DatePickerFragment: DialogFragment() { 
+    private val args: DatePickerFragmentArgs by navArgs()
+    override fun onCreateDialog(savedStateInstance: Bundle?): Dialog {
+        val dateListener = DatePickerDialog.OnDateSetListener {
+            _ *: DatePicker, year: Int, month: Int, day: Int → 
+                val resultDate = GregorianCalendar(year, month, day).time
+                setFragmentResult(REQUEST_KEY_DATE, bundleOf(BUNDLE_KEY_DATE to resultDate))*
+        }
+        val calendar = Calendar.getInstance()
+        val initialYear = calendar.get(Calendar.YEAR)
+        val initialMonth = calendar.get(Calendar.MONTH)
+        val initialDay = calendar.get(Calendar.DAY_OF_MONTH)
+
+        return DatePickerDialog(requireContext(), dateListener, initialYear, initialMonth, initialDay)
+    }
+}
+companion object {
+    const val REQUEST_KEY_DATE = “REQUEST_KEY_DATE”
+    const val BUNDLE_KEY_DATE = “BUNDLE_KEY_DATE”
+}
+
+onDateSetListener: It is used to receive data the user selects.
+First param is for the DatePicker the result is coming from.
+** when we are not using a param we name it as _ , so it will be ignored.
+
+1. Handling this date in CrimeDetailFragment.kt
+class CrimeDetailFragment: Fragment() {
+    …
+    setFragmentListener(
+        DatePickerFragment.REQUEST_KEY_DATE
+    ) { requestKey, bundle → 
+        val newDate = bundle.getSerializable(DatePickerFragment.BUNDLE_KEY_DATE as Date
+        crimeDetailViewModel.updateCrime { it.copy(date=newDate)}
+    }
+}
+
+### Date Dialog in Compose
+
+We have to use DatePickerDialog composable function from Material3, which provides a container to show the window, specific slots for confirm, cancel button etc.
+To show the Date picking component, we have to use DatePicker composable function from Material 3.
+Eg:
+
+`if (showDateDialog) {    
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = crime.date.time
+     )    
+     DatePickerDialog(        
+         onDismissRequest = { showDateDialog = false },        
+         confirmButton = {            
+             Button(                
+                 onClick = {                 onDateChange(datePickerState.selectedDateMillis?.let { Date(it) } ?: Date())                               showDateDialog = false                
+                 }            
+              ) {                
+                  Text(text = "Confirm")            
+              }        
+         },        
+         modifier = Modifier,        
+         dismissButton = {            
+             Button(onClick = { showDateDialog = false }) {                
+                 Text(text = "Cancel")            
+             }}
+     ) {        
+         DatePicker(state = datePickerState)    
+     }
+}`
+We need to pass initial date in state, to pre-populate the date picker component.
+`val datePickerState = rememberDatePickerState(initialSelectedDateMillis = crime.date.time)`
+** We had to convert from Long to Date format to update it in our database/viewmodel.
