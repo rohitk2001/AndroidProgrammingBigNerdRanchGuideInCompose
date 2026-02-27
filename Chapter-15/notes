@@ -1,0 +1,178 @@
+https://www.notion.so/Chapter-15-The-App-Bar-3141feed638a804e8dfcd40945f12ccc
+
+### App Bar
+
+It presents actions that the user can take, provides an additional mechanism for navigation, offers design consistency and branding.
+Often referred to as action bar or toolbar.
+
+### The Default App Bar
+
+The activities that extend from AppCompatActivity by default include an app bar, by applying theme which has by default.
+
+**AppCompat is short form for “application compatibility”. It contains classes and resources that are core to providing a consistent looking UI across different versions of Android.
+
+Theme for the app is specified at the application level and optionally per activity in our Android Manifest.
+
+### Menus
+
+Top-right area of app bar is reserved for the app bar’s menu.
+The menu consists of action items(menu items) which can perform an action on the current screen or on the apps a whole.
+
+### Defining a menu in XML
+
+Menus are a type of resource, similar to layouts, we create its xml file and place it in res/menu directory.
+Eg: res/menu/fragment_crim_list.xml
+<menu xmlns:android=”http://schemas.android.com/apk/res/android”
+             xmlns:app=”http://schemas.android.com/apk/res-auto”>
+    <item
+        android:id=”@+id/new_crime”
+        android:icon=”@drawable/ic_menu_add”
+        android:title=”@string/new_crime”
+        app:showAsAction=”ifRoom|withText/>
+</menu>
+
+showAsAction: This attribute refers to whether the item will appear in the app bar itself or in the overflow menu.
+ifRoom|withText: The item’s icon and text will appear in the app bar if there is room.
+**If there is room for the icon but not the text, then only icon will be visible.
+**If there is no room for either, then the item will be relegated to the overflow menu.
+
+The app namespace
+
+xmlns tag is used to define a namespace, app.
+This is used to specify the showAsAction attribute.
+** Libraries use this namespace to declare custom attributes specific to their function.
+There is an android:showAsAction attribute built into OS, but AppCompat library defines a custom app:showAsAction to provide consistent experience for all version of Android.
+
+### Creating the menu
+
+onCreateOptionsMenu(menu: Menu, inflater:MenuInflater) is used to create menu in Activity or Fragment.
+onOptionsItemSelected(item: MenuItem): Boolean  to respond to the selection of an action item.
+
+Eg: CrimeListFragment.kt
+class CrimeListFragment: Fragment() {
+    …
+    override fun onCreateOptionsMenu(menu:Menu, inflater: MenuInflater) {
+        super.onCreateOptionsMenu(menu, inflater)
+        inflater.inflate(R.menu.fragment_crime_list, menu)
+    }
+}
+
+MenuInflater.inflate(Int, Menu) ; this populates the Menu instance with the items defined in your file.
+Calling the superclass implementation of onCreateOptionsMenu() is not needed, as it does nothing but for convention better to call it.
+
+To call the onCreateOptionsMenu, we must explicitly tell the system that your fragment should receive a call to onCreateOptionsMenu, by using the function: setHasOptionsMenu(hasMenu: Boolean)
+
+Eg: CrimeListFragment.kt
+class CrimeListFragment: Fragment() {
+   override fun onCreate(savedStateInstance: Bundle?) {
+       super.onCreate(savedStateInstance)
+       setHasOptionsMenu(true)
+   }
+}
+
+** Action Item text will not be shown in vertical orientation due to space issue, only icon will be visible, but on long-press of the icon will reveal the text. Or it can be visible in horizontal mode.
+
+### Responding to menu selections
+
+1. Adding new crime to database: Crimea.kt
+`@Dao
+interface CrimeDao {
+    ...
+    @Insert
+    suspend fun addCrime(crime:Crime)
+}`
+2. Expose this function to repository
+`fun addCrime(crime: Crime) {    
+    coroutineScope.launch {        
+        database.crimeDao().addCrime(crime)    
+    }
+}`
+3. Use this repository method in Viewmodel
+`suspend fun addCrime(crime: Crime) {    
+    crimeRepository.addCrime(crime)
+ }`
+4. Now use this Viewmodel method to be called in UI
+`composable(CrimeIntentDestinations.CRIME_LIST_ROUTE) {    
+    val listViewModel: CrimeListViewModel = viewModel()    
+    CrimeListScreen(        
+        onCrimeClick = { crimeId ->            
+            navController.navigate(                "${CrimeIntentDestinations.CRIME_DETAIL_ROUTE}/${crimeId}"            
+            )        
+        },        
+        showNewCrime = {            
+            coroutineScope.launch {                
+                val newCrime = Crime(                    
+                    id = UUID.randomUUID().toString(),                    
+                    title = "New Crime",                    
+                    date = Date(),                    
+                    isSolved = false              
+                )                
+                listViewModel.addCrime(newCrime)
+navController.navigate("${CrimeIntentDestinations.CRIME_DETAIL_ROUTE}/${newCrime.id}")            
+            }        
+        }    
+    )
+}`
+5. Calling the method in UI
+`TopAppBar(                
+     title = {                    
+         Text(text = "Crimes")                
+     },                
+     actions = {                    
+         IconButton(onClick = {
+             showNewCrime()
+         }) {
+             Icon(
+                 imageVector = Icons.Filled.Add, 
+                 contentDescription = "Add Crime"
+             )                    
+         }                
+     }            
+)`   
+
+### App Bar VS Action Bar VS Toolbar
+
+App Bar: UI design element
+Toolbar builds on top of Action Bar.
+Action Bar: It has many constraints, like it will always appear on the top of the screen.
+There can only be one action bar.
+Size of action bar is fixed and cannot be changed.
+But toolbar does not have these constraints.
+
+### Menu Bar in Compose
+
+We need to use Scaffold composable with a TopAppBar to implement menu bar.
+Eg: CrimeListScreen.kt
+
+`@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CrimeListScreen(    
+    onCrimeClick: (String) -> Unit = {},    
+    viewModel: CrimeListViewModel = viewModel()
+) {    
+    val crimes by viewModel.crimes.collectAsState()    
+    Scaffold(        
+        topBar = {            
+            TopAppBar(                
+                title = {                    
+                    Text(text = "Crimes")                
+                },                
+                actions = {                    
+                    IconButton(onClick = {}) {
+                        Icon(
+                            imageVector = Icons.Filled.Add, 
+                            contentDescription = "Add Crime"
+                        )                    
+                    }                
+                }            
+            )        
+        }    
+    ) { innerPadding ->        
+        LazyColumn(            
+            modifier = Modifier.padding(innerPadding)        
+        ) {            
+            items(items = crimes, key = { crime -> crime.id }) { crime ->                            CrimeListItem(crime = crime, onCrimeClick = onCrimeClick)            
+            }        
+        }    
+    }
+}`
