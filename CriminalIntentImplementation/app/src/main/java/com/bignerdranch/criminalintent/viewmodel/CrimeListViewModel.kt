@@ -20,18 +20,7 @@ class CrimeListViewModel : ViewModel() {
     init {
         viewModelScope.launch {
             crimeRepository.getCrimes().collect { crimesFromDb ->
-                val listToShow = crimesFromDb.ifEmpty {
-                    // Database is empty, create the fallback list
-                    val fallbackList = (0 until 100).map { i ->
-                        Crime(
-                            id = i.toString(),
-                            title = "Crime #$i",
-                            date = Date(),
-                            isSolved = i % 2 == 0
-                        )
-                    }
-                    fallbackList // Use the fallback list
-                }
+                val listToShow = crimesFromDb
 
                 // Update the UI state
                 _crimes.value = listToShow
@@ -40,5 +29,13 @@ class CrimeListViewModel : ViewModel() {
                 crimeRepository.updateCache(listToShow)
             }
         }
+    }
+
+    fun addCrime(crime: Crime) {
+        crimeRepository.addCrime(crime)
+    }
+
+    fun deleteCrime(crime: Crime) {
+        crimeRepository.deleteCrime(crime)
     }
 }

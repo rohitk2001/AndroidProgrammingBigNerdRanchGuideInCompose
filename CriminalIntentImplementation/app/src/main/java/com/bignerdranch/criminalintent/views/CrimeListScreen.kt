@@ -2,19 +2,24 @@ package com.bignerdranch.criminalintent.views
 
 import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -30,25 +35,62 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bignerdranch.criminalintent.data.Crime
 import com.bignerdranch.criminalintent.viewmodel.CrimeListViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CrimeListScreen(
     onCrimeClick: (String) -> Unit = {},
+    showNewCrime: () -> Unit = {},
+    onDeleteCrime: (Crime) -> Unit,
     viewModel: CrimeListViewModel = viewModel()
 ) {
     val crimes by viewModel.crimes.collectAsState()
 
-    LazyColumn(
-        modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
-    ) {
-        items(items = crimes, key = { crime -> crime.id }) { crime ->
-            CrimeListItem(crime = crime, onCrimeClick = onCrimeClick)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(text = "Crimes")
+                },
+                actions = {
+                    IconButton(onClick = {
+                        showNewCrime()
+                    }) {
+                        Icon(imageVector = Icons.Filled.Add, contentDescription = "Add Crime")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        if (crimes.isEmpty()) {
+            Column(
+                modifier = Modifier.padding(innerPadding).fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Button(onClick = { showNewCrime() }) {
+                    Icon(imageVector = Icons.Filled.Add, contentDescription = "Add Crime")
+                    Text("No Crimes Exist! Please report if any")
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.padding(innerPadding)
+            ) {
+                items(items = crimes, key = { crime -> crime.id }) { crime ->
+                    CrimeListItem(
+                        crime = crime,
+                        onCrimeClick = onCrimeClick,
+                        onDeleteCrime = onDeleteCrime
+                    )
+                }
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CrimeListItem(crime: Crime, onCrimeClick: (String) -> Unit) {
+fun CrimeListItem(crime: Crime, onCrimeClick: (String) -> Unit, onDeleteCrime: (Crime) -> Unit) {
     Row(
         modifier = Modifier
             .clickable {
@@ -72,12 +114,22 @@ fun CrimeListItem(crime: Crime, onCrimeClick: (String) -> Unit) {
             )
         }
 
-        if (crime.isSolved) {
+        if (!crime.isSolved) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                 tint = Color.Gray,
                 contentDescription = "Arrow_Icon"
             )
+        } else {
+            IconButton(onClick = {
+                onDeleteCrime.invoke(crime)
+            }) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    tint = Color.Gray,
+                    contentDescription = "Delete_Icon"
+                )
+            }
         }
     }
 }
@@ -85,5 +137,10 @@ fun CrimeListItem(crime: Crime, onCrimeClick: (String) -> Unit) {
 @Preview
 @Composable
 private fun CrimeListPreview() {
-    CrimeListScreen()
+    CrimeListScreen(
+        onCrimeClick = {},
+        showNewCrime = {},
+        onDeleteCrime = {},
+        viewModel = viewModel()
+    )
 }

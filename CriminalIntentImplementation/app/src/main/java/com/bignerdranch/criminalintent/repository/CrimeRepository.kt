@@ -53,9 +53,20 @@ class CrimeRepository private constructor(context: Context, private val coroutin
     }
 
     fun updateCrime(crime: Crime) {
-        //FOR THIS TO WORK CORRECTLY NEED TO HAVE ADD METHODS SO THAT DATABASE CAN BE CREATED CORRECTLY
         coroutineScope.launch {
             database.crimeDao().updateCrime(crime)
+        }
+    }
+
+    fun addCrime(crime: Crime) {
+        coroutineScope.launch {
+            database.crimeDao().addCrime(crime)
+        }
+    }
+
+    fun deleteCrime(crime: Crime) {
+        coroutineScope.launch {
+            database.crimeDao().deleteCrime(crime)
         }
     }
 
