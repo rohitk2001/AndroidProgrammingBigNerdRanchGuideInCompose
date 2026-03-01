@@ -33,6 +33,10 @@ class CrimeDetailViewModel(crimeId: String) : ViewModel() {
         _crime.value = _crime.value?.copy(date = date)
     }
 
+    fun updateSuspect(suspect: String) {
+        _crime.value = _crime.value?.copy(suspect = suspect)
+    }
+
     override fun onCleared() {
         super.onCleared()
         crime.value?.let {

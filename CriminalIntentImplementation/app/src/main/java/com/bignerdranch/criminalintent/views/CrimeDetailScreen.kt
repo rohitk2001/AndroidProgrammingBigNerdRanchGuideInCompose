@@ -35,6 +35,13 @@ import com.bignerdranch.criminalintent.R
 import com.bignerdranch.criminalintent.data.Crime
 import com.bignerdranch.criminalintent.viewmodel.CrimeDetailViewModel
 import java.util.Date
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.text.format.DateFormat
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import android.provider.ContactsContract
 
 @Composable
 fun CrimeDetailScreen(
@@ -44,9 +51,51 @@ fun CrimeDetailScreen(
     )
 ) {
     val crime by viewModel.crime.collectAsState()
+    val context = LocalContext.current
+
+    val pickContactLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickContact()
+    ) { contactUri: Uri? ->
+        contactUri?.let {
+            // Query the contact name from the returned URI
+            val queryFields = arrayOf(ContactsContract.Contacts.DISPLAY_NAME)
+            val cursor = context.contentResolver.query(contactUri, queryFields, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val suspect = it.getString(0)
+                    // 2. Update the ViewModel with the selected name
+                    viewModel.updateSuspect(suspect)
+                }
+            }
+        }
+    }
+
     crime?.let {
+        val solvedString = if (it.isSolved) {
+            stringResource(R.string.crime_report_solved)
+        } else {
+            stringResource(R.string.crime_report_unsolved)
+        }
+        val dateString = DateFormat.format("EEEE, MMM dd", it.date).toString()
+        val suspectText = if (it.suspect.isBlank()) {
+            stringResource(R.string.crime_report_no_suspect)
+        } else {
+            stringResource(R.string.crime_report_suspect, it.suspect)
+        }
+        val report = stringResource(
+            R.string.crime_report,
+            it.title, dateString, solvedString, suspectText
+        )
+        val subject = stringResource(R.string.crime_report_subject)
+
+        val selectSuspectIntent = pickContactLauncher.contract.createIntent(
+            context, null
+        )
+        val canShowSuspectButton = canResolveIntent(selectSuspectIntent, context)
+
         CrimeDetailContent(
             crime = it,
+            canShowSuspectButton = canShowSuspectButton,
             onTitleChange = { newTitle ->
                 viewModel.updateTitle(newTitle)
             },
@@ -55,9 +104,36 @@ fun CrimeDetailScreen(
             },
             onDateChange = { date ->
                 viewModel.updateDate(date)
+            },
+            onSendReport = {
+                val reportIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, report)
+                    putExtra(
+                        Intent.EXTRA_SUBJECT,
+                        subject
+                    )
+                }
+                val chooserIntent = Intent.createChooser(
+                    reportIntent,
+                    context.getString(R.string.send_report)
+                )
+                context.startActivity(chooserIntent)
+            },
+            onPickSuspect = {
+                pickContactLauncher.launch(null)
             }
         )
     }
+}
+
+private fun canResolveIntent(intent: Intent, context: android.content.Context): Boolean {
+    val packageManager = context.packageManager
+    val resolvedActivity = packageManager.resolveActivity(
+        intent,
+        android.content.pm.PackageManager.MATCH_DEFAULT_ONLY
+    )
+    return resolvedActivity != null
 }
 
 class CrimeDetailViewModelFactory(
@@ -75,9 +151,12 @@ class CrimeDetailViewModelFactory(
 @Composable
 fun CrimeDetailContent(
     crime: Crime,
+    canShowSuspectButton: Boolean = false,
     onTitleChange: (String) -> Unit,
     onSolvedChange: (Boolean) -> Unit,
-    onDateChange: (Date) -> Unit
+    onDateChange: (Date) -> Unit,
+    onSendReport: () -> Unit,
+    onPickSuspect: () -> Unit
 ) {
     var showDateDialog by rememberSaveable { mutableStateOf(false) }
 
@@ -91,16 +170,20 @@ fun CrimeDetailContent(
         Text(text = stringResource(R.string.crime_title_label))
         TextField(
             modifier = Modifier.fillMaxWidth(),
-            value = crime.title ?: stringResource(R.string.crime_title_hint),
+            value = crime.title,
             onValueChange = { text ->
                 onTitleChange(text)
-            }
+            },
+            placeholder = { Text(stringResource(R.string.crime_title_hint)) }
         )
         Text(text = stringResource(R.string.crime_details_label))
         Button(enabled = true, onClick = {
             showDateDialog = true
         }) {
-            Text(modifier = Modifier.fillMaxWidth(), text = crime.date.toString())
+            Text(
+                modifier = Modifier.fillMaxWidth(),
+                text = DateFormat.format("EEEE, MMM dd, yyyy", crime.date).toString()
+            )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
@@ -112,8 +195,23 @@ fun CrimeDetailContent(
             Text(text = stringResource(R.string.crime_solved_label))
         }
 
+        Button(enabled = canShowSuspectButton, onClick = {
+            onPickSuspect.invoke()
+        }) {
+            Text(
+                modifier = Modifier.fillMaxWidth(),
+                text = "CHOOSE SUSPECT".takeIf { crime.suspect.isEmpty() } ?: crime.suspect)
+        }
+
+        Button(enabled = true, onClick = {
+            onSendReport.invoke()
+        }) {
+            Text(modifier = Modifier.fillMaxWidth(), text = "SEND CRIME REPORT")
+        }
+
         if (showDateDialog) {
-            val datePickerState = rememberDatePickerState(initialSelectedDateMillis = crime.date.time)
+            val datePickerState =
+                rememberDatePickerState(initialSelectedDateMillis = crime.date.time)
             DatePickerDialog(
                 onDismissRequest = { showDateDialog = false },
                 confirmButton = {

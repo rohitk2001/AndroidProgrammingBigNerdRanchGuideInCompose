@@ -2,25 +2,20 @@ package com.bignerdranch.criminalintent.repository
 
 import android.content.Context
 import androidx.room.Room
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.bignerdranch.criminalintent.data.Crime
 import com.bignerdranch.criminalintent.data.database.CrimeDatabase
+import com.bignerdranch.criminalintent.data.database.migrationFromTwoToThree
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
-class CrimeRepository private constructor(context: Context, private val coroutineScope: CoroutineScope = GlobalScope) {
-    // 1. Define the migration logic
-    private val migrationFromOneToTwo = object : Migration(1, 2) {
-        override fun migrate(db: SupportSQLiteDatabase) {
-            // This is where you write the SQL to update the schema.
-            // Example: adding a 'suspect' text column to the 'Crime' table.
-            db.execSQL("ALTER TABLE Crime ADD COLUMN suspect TEXT NOT NULL DEFAULT ''")
-        }
-    }
-
+class CrimeRepository @OptIn(DelicateCoroutinesApi::class)
+private constructor(
+    context: Context,
+    private val coroutineScope: CoroutineScope = GlobalScope
+) {
     // 1. Add an in-memory cache for the crime list
     private var inMemoryCrimes: List<Crime> = emptyList()
     private val database: CrimeDatabase = Room
@@ -30,8 +25,7 @@ class CrimeRepository private constructor(context: Context, private val coroutin
 
             "crime-database"
         )
-        .addMigrations(migrationFromOneToTwo)
-        .fallbackToDestructiveMigration()
+        .addMigrations(migrationFromTwoToThree)
         .build()
 
     fun getCrimes(): Flow<List<Crime>> = database.crimeDao().getCrimes()
