@@ -1,2 +1,351 @@
 https://www.notion.so/Chapter-16-Implicit-Intents-3151feed638a8031a88dd97d9ae5fbfe
 
+In Android we can start an activity in another application on device using an intent.
+
+In an *Explicit Intent* we specify the class of the activity to start, and the OS will start it.
+In an *Implicit Intent*, we describe the job that we need done, OS will start an activity in appropriate application for us.
+
+Eg: We will use Implicit intent to enable picking a suspect for a Crime from the user’s list of contacts and sending a text-based report of a crime.
+
+### Updating Room Database Version
+
+When we update the Crime data class, the Room uses that class to create database tables. 
+Hence we need to increment the version of CrimeDatabase class and tell Room how to migrate our database between versions.
+
+** Room uses a versioning system to manage how data is structured within a database.
+When our app launches and Room builds database, it will first check the version of the existing database on the device. I the version does not match the one you define in @Database annotation , then Room will begin the process to migrate that database to latest version.
+
+### Handle Database Migrations
+
+1. fallbackToDestructiveMigration()
+We can call this when building our CrimeDatabase instance.
+When this function is invoked, Room will delete all the data within the database and re-create a new-version.
+** All the data will be lost, leading to unsatisfactory user experience.
+2. Migration class
+This takes two parameters: first is the database version you are migrating from, and the second is version you are migrating to.
+We need to implement **migrate(SupportSQLiteDatabase) i**n our migration object.  Room will use SQLite under the hood, call ALTER TABLE and ADD COLUMN commands.
+Eg: In CrimeDatabase.kt
+`@Database(entities = [ Crime::class ], version = 3, exportSchema = false)
+@TypeConverters(CrimeTypeConverters::class)
+abstract class CrimeDatabase: RoomDatabase() {   
+    abstract fun crimeDao(): CrimeDao
+}
+val migrationFromTwoToThree = object : Migration(2, 3) {    
+    override fun migrate(db: SupportSQLiteDatabase) {        
+        db.execSQL("ALTER TABLE Crime ADD COLUMN suspect TEXT NOT NULL DEFAULT ''")    
+    }
+}` 
+Eg: In CrimeRepository.kt 
+`private val database: CrimeDatabase = Room    
+    .databaseBuilder(        
+        context.applicationContext,        
+        CrimeDatabase::class.java,        
+        "crime-database"    
+    ) 
+    .addMigrations(migrationFromTwoToThree)    
+    .build()`
+
+### Using a Format String
+
+`<string name="crime_report">%1$s!    
+    The crime was discovered on %2$s. %3$s, and %4$s
+</string>` 
+%1$s, %2$s, %3$s are placeholders that expect a string argument, which will be populated dynamically using getString(…).
+Eg: CrimeDetailScreen.kt
+
+`val crime by viewModel.crime.collectAsState()
+ crime?.let {    
+    val solvedString = if (it.isSolved) {
+        stringResource(R.string.crime_report_solved)    
+    } else {        
+        stringResource(R.string.crime_report_unsolved)    
+    }    
+    val dateString = DateFormat.format(DATE_FORMAT, it.date).toString()    
+    val suspectText = if (it.suspect.isBlank()) {
+        stringResource(R.string.crime_report_no_suspect)    
+    } else {        
+        stringResource(R.string.crime_report_suspect, it.suspect)    
+    }    
+    val report =  stringResource(
+        R.string.crime_report,it.title, dateString, solvedString, suspectText
+    )
+}`
+
+### Using Implicit Intents
+
+An Intent is an object that describes to the OS something you want it to do.
+With an Implicit Intent, we describe the to the OS the job that we want done.
+OS then starts the activity that has advertised itself as capable of doing that job.
+If OS finds more than one capable activity, then the user is offered a choice.
+
+### Parts of an implicit Intent
+
+1. action, that we are trying to perform
+Actions are typically constants from the Intent class.
+Eg: Intent.ACTION_VIEW, lets you view something
+Eg: Intent.ACTION_SEND, lets you send something
+2. location  of any data
+The data can be something outside the device, like the URL of web-page, but can also be a URI to a file or content URI pointing to a record in ContentProvider.
+3. type of data that the action is for
+This is a MIME type, like text/html or audio/mpeg3. If an intent includes a location for data, then the type can usually be inferred from that data.
+4. optional categories
+Category describes where, when or how you are trying to use an activity.
+Eg: android.intent.category.LAUNCHER, Android uses this to indicate that an activity should be displayed in the top-level app launcher.
+Eg: [android.intent.category.INFO](http://android.intent.category.INFO) indicates an activity that shows information about a package to user but should not show up in the launcher.
+
+An Activity advertises itself as an appropriate activity for ACTION_VIEW via an intent filter in the manifest.
+Eg: Browser activity
+
+`<activity    
+    android:name=".BrowserActivity"    
+    android:exported="true"    
+    android:label="@string/app_name"    
+    android:theme="@style/Theme.CriminalIntent">   
+        <intent-filter>        
+            <action android:name="android.intent.action.VIEW" />        
+            <category android:name="android.intent.category.DEFAULT" /> 
+            <data android:scheme="http" android:host="www.bignerdranch.com"/>  
+        </intent-filter>
+</activity>`
+
+android:exported attribute: To respond to an implicit intent, an activity must have this set to true.
+And should include DEFAULT category in intent-filter.
+action element: Tells the OS that the activity is capable performing the job.
+DEFAULT category: It tells the OS that this activity should be considered for the job when OS is asking for volunteers.
+
+### Sending a crime report
+
+We will implement the Implicit intent and call it in composable:
+Eg: CrimeDetailScreen.kt
+`@Composablefun 
+CrimeDetailScreen(    
+    crimeId: String?,    
+    viewModel: CrimeDetailViewModel = viewModel(        
+        factory = CrimeDetailViewModelFactory(crimeId)
+    )
+) {    
+    val crime by viewModel.crime.collectAsState()    
+    val context = LocalContext.current`
+ 
+      `crime?.let {
+        CrimeDetailContent(            
+            crime = it,            
+            onTitleChange = {...},            
+            onSolvedChange = {...},            
+            onDateChange = {...},            
+            onSendReport = {                
+                val reportIntent = Intent(Intent.ACTION_SEND).apply {                                     type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, report)                    
+                    putExtra(Intent.EXTRA_SUBJECT, subject)                
+                }                
+                context.startActivity(reportIntent)            
+            },        
+        )    
+    }
+}`
+
+We can also use Chooser to be shown. Which presents various valid apps.
+Provides better UI then default.
+
+`onSendReport = {                
+                val reportIntent = Intent(Intent.ACTION_SEND).apply {                                     type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, report)                    
+                    putExtra(Intent.EXTRA_SUBJECT, subject)                
+                }                
+                val chooserIntent = Intent.createChooser(        
+                    reportIntent,        
+                    context.getString(R.string.send_report)    
+                )    
+                context.startActivity(chooserIntent)            
+}` 
+
+### Asking Android for a contact
+
+For this we can setup an Intent, but it's easier to use built-in Activity Results API which has ActivityResultContracts.PickContact() class, which sends the user to an activity where they can select a contact. Once the user selects a contact, you will receive a Uri back as the result.
+
+We will use registerForActivityResult(…) to handle the Uri, in CrimeDetailFragment.kt
+Eg: CrimeDetailScreen.kt
+
+`@Composablefun 
+CrimeDetailScreen(    
+    crimeId: String?,    
+    viewModel: CrimeDetailViewModel = viewModel(
+        factory = CrimeDetailViewModelFactory(crimeId)    
+    )
+) {    
+    val crime by viewModel.crime.collectAsState()    
+    val context = LocalContext.current    
+    val pickContactLauncher = rememberLauncherForActivityResult(        
+        contract = ActivityResultContracts.PickContact()    
+    ) { contactUri: Uri? ->        
+        contactUri?.let {        
+        }    
+    }
+}`
+
+In compose we use rememberLauncherForActivityResult instead.
+
+Now we set the onClickListener of Button to call this method.
+Eg: CrimeDetailScreen.kt
+
+`CrimeDetailContent( 
+    ...
+    onPickSuspect = {        
+        pickContactLauncher.launch(null)    
+    }
+)`
+
+Then we add the update suspect method in Viewmodel and also handle in CrimeDetailContent.
+Eg: CrimeDetailContent
+
+`@Composablefun 
+CrimeDetailContent(    
+    crime: Crime,    
+    onTitleChange: (String) -> Unit,    
+    onSolvedChange: (Boolean) -> Unit,    
+    onDateChange: (Date) -> Unit,    
+    onSendReport: () -> Unit,    
+    onPickSuspect: () -> Unit) 
+{
+    ....
+    Button(
+        enabled = true, 
+        onClick = { onPickSuspect.invoke() }
+     ) {    
+         Text(
+             modifier = Modifier.fillMaxWidth(),        
+             text = "CHOOSE SUSPECT".takeIf { 
+                 crime.suspect.isEmpty() } ?: crime.suspect
+         )
+     }
+    ....
+}`
+
+Eg: CrimeDetailViewModel.kt
+
+`fun updateSuspect(suspect: String) {    
+    _crime.value = _crime.value?.copy(suspect = suspect)
+}`
+
+### Getting data from the contacts list
+
+ContentProvider: We can use this API from Android to work with contacts data.
+We recieve an Uri in pickContactLauncher, which points to a resource which we can query for information regarding contact.
+Eg: CrimeDetailScreen.kt
+
+`val pickContactLauncher = rememberLauncherForActivityResult(    
+    contract = ActivityResultContracts.PickContact()
+) { contactUri: Uri? ->    
+    contactUri?.let {        
+            val queryFields = arrayOf(ContactsContract.Contacts.DISPLAY_NAME)                     val cursor = context.contentResolver.query(
+                contactUri, queryFields, null, null, null
+            )        
+            cursor?.use {            
+                if (it.moveToFirst()) {                
+                    val suspect = it.getString(0)
+                    viewModel.updateSuspect(suspect)            
+                }        
+             }    
+    }
+}`
+
+We create an query that asks for all the display names of the contacts in the returned data.
+Then we query the contacts database and get a Cursor object to work with.
+** The Cursor points to a database table containing a single row and single column. 
+The row represents the contact the user selected.
+The column has contact’s name.
+
+Cursor.moveToFirst(): It moves the cursor to the first row, and it returns a Boolean to determine whether there is data to read from.
+it.getString(0), to pull contents of first column in that first row as string.
+
+### Contact permissions
+
+The contacts app has full permissions to contacts database.
+When the contacts app returns a data URI as the result, it also adds the flag Intent.FLAG_GRANT_READ_URI_PERMISSION.
+This signals to Android that our app should be allowed to use the data one time.
+
+### Checking for responding activities
+
+First implicit intent we created will always be responded in some way, because there may be way no way to send a report but the chooser will still display properly.
+But for second implicit intent that not the case, if some devices do not have Contacts app, then OS cannot find a matching activity, the app will crash.
+
+Therefor to determine whether user has appropriate application, we to need to query the system to determine which activities will respond to our intent.
+If one or more activities are returned, then user is all set to pick a contact.
+Else no activities are returned, then the functionality should be disabled.
+
+### Disclosing queries
+
+To successfully make a query, we must disclose about it.
+We do so by adding queries in AndroidManifest.xml.
+Eg: AndroidManifest.xml
+
+`<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">    
+    <queries>        
+        <intent>            
+            <action android:name="android.intent.action.PICK" />            
+            <data android:mimeType="vnd.android.cursor.dir/contact" />  
+        </intent>    
+     </queries>
+</manifest>`
+
+The queries block includes all the external intents the app is going to look up.
+If we do not provide this info, then the Contact app will not open.
+
+### Querying the PackageManager
+
+Now we have disclosed that our Intent will call contact.
+Now we will use PackageManager to determine whether the OS can handle our request, as it knows about all the components installed on Android device.
+Eg: CrimeDetailScreen.kt
+
+`private fun canResolveIntent(
+    intent: Intent, 
+    context: android.content.Context
+): Boolean {    
+    val packageManager = context.packageManager    
+    val resolvedActivity = packageManager.resolveActivity(        
+        intent,        
+        android.content.pm.PackageManager.MATCH_DEFAULT_ONLY    
+    )    
+    return resolvedActivity != null
+}`
+
+Now we need to enable or disable our app based on canResolveIntent boolean value.
+Since we used ActivityContractsAPI, we need to create instance of our chooseSuspect Intent.
+Eg: CrimeDetailScreen.kt
+
+`private fun canResolveIntent(
+    intent: Intent, 
+    context: android.content.Context
+): Boolean {    
+    val packageManager = context.packageManager    
+    val resolvedActivity = packageManager.resolveActivity(        
+        intent,        
+        android.content.pm.PackageManager.MATCH_DEFAULT_ONLY    
+    )    
+    return resolvedActivity != null
+}`  
+
+Now we will call this method.
+Eg: CrimeDetailScreen method
+
+`val selectSuspectIntent = pickContactLauncher.contract.createIntent(    
+    context, null
+)
+val canShowSuspectButton = canResolveIntent(selectSuspectIntent, context)` 
+
+Then we just pass canShowSuspectButton to button enabled state.
+
+### Challenge: To call phone intent
+
+1. Need the phone number from contacts database.
+Will need to query another table in ContactsContract database called CommonDataKinds.Phone
+2. Then we need to use the permission android.permission.READ_CONTACTS
+Which is runtime permission to ask the user for access to their contacts.
+3. Once granted, we read ContactsContracts.Contacts._ID to get a contact ID.
+We use this ID to query [CommonDataKinds.Phone](http://CommonDataKinds.Phone) table
+4. Once we have the phone number, we can create implicit Intent with a telephone URI.
+Uri number = Uri.parse(”tel:55512342”)
+5. Action can be Intent.ACTION_DIAL or Intent.ACTION_CALL
+ACTION_CALL: Pulls up the phone app, immediately calls the number sent in intent.
+ACTION_DIAL: Just enters the number and waits for the user to initiate the call.
