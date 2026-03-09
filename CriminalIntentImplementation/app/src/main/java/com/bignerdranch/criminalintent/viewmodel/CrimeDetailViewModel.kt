@@ -1,12 +1,15 @@
 package com.bignerdranch.criminalintent.viewmodel
 
+import androidx.compose.animation.core.copy
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bignerdranch.criminalintent.data.Crime
 import com.bignerdranch.criminalintent.repository.CrimeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.Date
 
 class CrimeDetailViewModel(crimeId: String) : ViewModel() {
@@ -35,6 +38,12 @@ class CrimeDetailViewModel(crimeId: String) : ViewModel() {
 
     fun updateSuspect(suspect: String) {
         _crime.value = _crime.value?.copy(suspect = suspect)
+    }
+
+    var pendingPhotoFileName: String? = null
+
+    fun updatePhotoFileName(fileName: String) {
+        _crime.update { it?.copy(photoFileName = fileName) }
     }
 
     override fun onCleared() {
