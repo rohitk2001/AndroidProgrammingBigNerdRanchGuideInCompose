@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CriminalIntent</string>
+    <string name="crime_title_hint">अपराध के लिए शीर्षक दर्ज करें</string>
+    <string name="crime_title_label">शीर्षक</string>
+    <string name="crime_details_label">विवरण</string>
+    <string name="crime_solved_label">सुलझ गया</string>
+    <string name="crime_report">%1$s!
+        अपराध का पता %2$s को चला था। %3$s, और %4$s
+    </string>
+    <string name="crime_report_solved">मामला सुलझ गया है</string>
+    <string name="crime_report_unsolved">मामला अभी सुलझा नहीं है</string>
+    <string name="crime_report_suspect">संदिग्ध: %1$s</string>
+    <string name="crime_report_no_suspect">कोई संदिग्ध नहीं है</string>
+    <string name="crime_report_subject">Criminal Intent अपराध रिपोर्ट</string>
+    <string name="send_report">अपराध रिपोर्ट भेजें</string>
+</resources>
