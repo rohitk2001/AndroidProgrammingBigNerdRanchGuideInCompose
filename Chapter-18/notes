@@ -1,0 +1,108 @@
+https://www.notion.so/Chapter-18-Localization-31e1feed638a809692b5ec7382604344
+
+Localization is the process of providing appropriate resources for your app based on user’s language setting.
+
+### Localising Resources
+
+We just need to create resource subdirectories with the desired language configuration qualifier and put alternative resources in them.
+
+We need to create a new resource file of type value with Locale qualifier, and choose the appropriate qualifier like English, Hindi, Spanish etc.
+
+Then add our strings with translations in this file:
+
+`<?xml version="1.0" encoding="utf-8"?>`
+
+`<resources>   
+<string name="app_name">CriminalIntent</string>    
+<string name="crime_title_hint">अपराध के लिए शीर्षक दर्ज करें</string>    
+<string name="crime_title_label">शीर्षक</string>    
+<string name="crime_details_label">विवरण</string>    
+<string name="crime_solved_label">सुलझ गया</string>    
+<string name="crime_report">%1$s!        अपराध का पता %2$s को चला था। %3$s, और %4$s    </string>    
+<string name="crime_report_solved">मामला सुलझ गया है</string>    
+<string name="crime_report_unsolved">मामला अभी सुलझा नहीं है</string>    
+<string name="crime_report_suspect">संदिग्ध: %1$s</string>    
+<string name="crime_report_no_suspect">कोई संदिग्ध नहीं है</string>   
+ <string name="crime_report_subject">Criminal Intent अपराध रिपोर्ट</string>    
+<string name="send_report">अपराध रिपोर्ट भेजें</string>
+</resources>`
+
+### Default Resources
+
+If suppose we changed strings.xml to es qualifier, then we would not have any default resources, in that case suppose an app with language set as Italian, would lead to crash with Resources.NotFoundException.
+
+The Android Asset Packaging Tool(AAPT) does many checks while packaging up our resources.
+If it finds that we are using resources that are not included in default resources, it will throw an compile time error: Android resource linking failed
+
+Hence provide default resources.
+
+** Translations Editor: This helps in seeing all our translations in one place. It shows all the app’s strings and the translation status for each of the languages for which the app provided an qualifier string values.
+
+### Targeting a region
+
+We can qualify a resource directory with a language-plus-region qualifier.
+Eg: -es-rES for Spanish in Spain
+r denotes region qualifier
+ES is ISO 3166-1-alpha-2 code
+Eg: -es-rMX for Spanish in Mexico
+
+A resource qualified with both a locale and region has two opportunities for matching a user’s locale. An exact match occurs when both the language and region qualifiers match the user’s locale. If no match is found, then system will check only for language match.
+
+** Always try to keep language-only qualified strings, and keep minimum strings specific to region qualified.
+
+### Configuration Qualifiers
+
+Device configurations for which Android provides configuration qualifiers are:
+1. mobile country code, mobile network code
+2. language code, region code
+3. layout direction
+4. smallest width
+5. screen size
+6. available width
+7. available height
+8. screen aspect
+9. round screen
+10. wide color gamut
+11. high dynamic range
+12. screen orientation
+13. UI mode
+14. night mode
+15. screen density (dpi)
+16. touchscreen type
+17. keyboard availability
+18. primary text input method
+19. navigation key availability
+20. primary not-touch navigation method
+21. API level
+
+** Not all qualifiers are supported by earlier version of Android. But Android will automatically include version qualifier for them.
+
+### Prioritising alternative resources
+
+Given many types of configuration qualifiers for targeting resources, there can be times when device configuration will match more than one alternative resource, then the qualifiers are given precedence in the order shown above.
+
+### Multiple Qualifiers
+
+We can put more than one qualifier on a resource directory.
+When using multiple qualifiers on directory, we must put them in the order of their precedence.
+Eg: values-es-w600dp
+
+### Finding the best-matching resources
+
+Android just tries to match the available resources files based on the priority, and finalises it.
+
+### Layout Editor
+
+The layout editor lets you try different device orientations and device locales.
+
+### Dimension Qualifiers
+
+1. wXXXdp: available width: width greater than or equal to XXX dp
+2. hXXXdp: available height: height greater than or equal to XXX dp
+3. swXXXdp: smallest width: width or height(whichever is smaller) greater than or equal to XXX dp
+
+### Localising Dates
+
+`text = DateFormat.getMediumDateFormat(context).format(crime.date)`
+
+This will help in showing date format based on device region.
