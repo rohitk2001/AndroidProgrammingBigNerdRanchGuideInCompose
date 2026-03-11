@@ -110,7 +110,7 @@ fun CrimeDetailScreen(
         } else {
             stringResource(R.string.crime_report_unsolved)
         }
-        val dateString = DateFormat.format("EEEE, MMM dd", it.date).toString()
+        val dateString = DateFormat.getMediumDateFormat(context).format(it.date).toString()
         val suspectText = if (it.suspect.isBlank()) {
             stringResource(R.string.crime_report_no_suspect)
         } else {
@@ -290,7 +290,7 @@ fun CrimeDetailContent(
         }) {
             Text(
                 modifier = Modifier.fillMaxWidth(),
-                text = DateFormat.format("EEEE, MMM dd, yyyy", crime.date).toString()
+                text = DateFormat.getMediumDateFormat(context).format(crime.date)
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
