@@ -1,0 +1,48 @@
+https://www.notion.so/Chapter-19-Accessibility-3201feed638a80a9af75c3cd55d1a8ae
+
+An accessible app is usable by anyone, regardless of impairments in vision, mobility, or hearing.
+
+### TalkBack
+
+It is an Android screen reader app made by Google.
+It speaks out the content of the screen based on what the user is doing.
+The green outline indicates which UI element has accessibility focus.
+Single press(tap) gives an element accessibility focus.
+Double-tapping anywhere on the screen activates the element that has focus.
+
+### Explore by Touch Mode
+
+When this mode is enabled, device will speak information about an item immediately after its pressed.
+
+** Compose built-in UI elements also support TalkBack .
+
+### Linear navigation by swiping
+
+Swiping right: Moves accessibility focus to the next item on screen.
+Swiping left: Moves accessibility focus to previous item on screen.
+
+**Emulator can use keyboard arrow keys to mimic this behaviour.
+
+Swiping with two finger from bottom of device: Navigates to Home Screen
+Two finger swipe from left to right edge of device: Back navigation
+Two finger: Scroll
+
+### Making Non-Text Elements Readable by Talkback
+
+Adding content descriptions:  This specifies details for Talkback to read by adding a content description. It is a piece of text that describes the view and is read by Talkback.
+
+### Making a View focusable
+
+We can make view focusable, by setting its android:focusable attribute to true or by adding click listener or adding contentDescription. In compose this same can be achieved using modifiers.
+
+### Creating a Comparable Experience
+
+If there is a view that does not provide any value other than decoration, we should explicitly tell Talkback to ignore it by setting the android:importantForAccessibility to no.
+
+### Accessibility Scanner
+
+Google’s this app, analyses apps and evaluates how accessible they are, and provides suggestions based on its findings.
+Eg: Touch target: Minimum size for all touch targets is 48dp.
+
+** View.announceForAccessibility(…) to announce what happened as a result of action happening.
+Eg: Making announcement when we get the result back from taking a photo
